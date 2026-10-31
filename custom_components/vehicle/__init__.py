@@ -16,6 +16,7 @@ from homeassistant.core import (
     ServiceCall,
     ServiceResponse,
     SupportsResponse,
+    callback,
 )
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
@@ -32,6 +33,7 @@ from .const import (
     SERVICE_COMPLETE_SERVICE,
     SERVICE_SET_ODOMETER,
     SUBENTRY_TYPE_SERVICE,
+    VEHICLE_KEYS,
 )
 from .coordinator import VehicleConfigEntry, VehicleCoordinator
 from .receipts import (
@@ -215,6 +217,14 @@ def _clean_scan(kind: str, data: dict[str, Any]) -> dict[str, Any]:
     return values
 
 
+def _subentry_of(entry: VehicleConfigEntry, entity: er.RegistryEntry) -> str | None:
+    """Return the service item (subentry) an entity belongs to, if any."""
+    for subentry_id in entry.subentries:
+        if (entity.unique_id or "").startswith(f"{entry.entry_id}_{subentry_id}_"):
+            return subentry_id
+    return None
+
+
 async def _checked_receipt(hass: HomeAssistant, receipt: str | None) -> str | None:
     """Return the receipt id if it exists, else raise."""
     if receipt is None:
@@ -309,14 +319,15 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
     async def complete_service(call: ServiceCall) -> None:
         coordinator, entity = _resolve(hass, call.data["entity_id"])
-        if not entity.config_subentry_id:
+        subentry_id = _subentry_of(coordinator.config_entry, entity)
+        if not subentry_id:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="not_service_entity",
                 translation_placeholders={"entity_id": call.data["entity_id"]},
             )
         await coordinator.async_complete_service(
-            entity.config_subentry_id,
+            subentry_id,
             date=call.data.get("date"),
             odometer=call.data.get("odometer"),
             cost=call.data.get("cost"),
@@ -378,8 +389,8 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             old = store.attach_to_log(
                 coordinator.config_entry.entry_id, call.data["log_entry_id"], receipt
             )
-        elif entity.config_subentry_id:
-            old = store.attach_to_service(entity.config_subentry_id, receipt)
+        elif subentry_id := _subentry_of(coordinator.config_entry, entity):
+            old = store.attach_to_service(subentry_id, receipt)
         else:
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="attach_target_missing"
@@ -445,22 +456,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: VehicleConfigEntry) -> b
     entry.runtime_data = coordinator
     coordinator.start_tracking()
 
-    _async_prepare_devices(hass, entry, coordinator)
+    _async_prepare_registry(hass, entry, coordinator)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _async_remove_item_devices(hass, entry)
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
 
 
-def _async_prepare_devices(
+def _async_prepare_registry(
     hass: HomeAssistant, entry: VehicleConfigEntry, coordinator: VehicleCoordinator
 ) -> None:
-    """Create the vehicle device and unlink it from service items.
+    """Create the vehicle device and tidy registry state of earlier versions.
 
-    Service items have their own devices (linked via ``via_device``). Earlier
-    versions attached the shared vehicle device to every service item, which
-    showed all vehicle entities under each item.
+    There is exactly one device per vehicle. Service item entities live on it
+    and are not attached to the config subentries, because on current Home
+    Assistant versions that would move the shared device onto the subentry
+    ("the new service overrides the vehicle"). Earlier versions of this
+    integration attached the device or separate item devices to the subentries.
     """
     dev_reg = dr.async_get(hass)
+    ent_reg = er.async_get(hass)
     device = dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, entry.entry_id)},
@@ -472,14 +487,37 @@ def _async_prepare_devices(
         # Home Assistant 2026.10+: a device belongs to exactly one subentry.
         if device.config_subentry_id is not None:
             dev_reg.async_update_device(device.id, new_config_subentry_id=None)
-        return
-    for subentry_id in device.config_entries_subentries.get(entry.entry_id, set()):
-        if subentry_id is not None:
-            dev_reg.async_update_device(
-                device.id,
-                remove_config_entry_id=entry.entry_id,
-                remove_config_subentry_id=subentry_id,
-            )
+    else:
+        for subentry_id in device.config_entries_subentries.get(entry.entry_id, set()):
+            if subentry_id is not None:
+                dev_reg.async_update_device(
+                    device.id,
+                    remove_config_entry_id=entry.entry_id,
+                    remove_config_subentry_id=subentry_id,
+                )
+
+    prefix = f"{entry.entry_id}_"
+    for entity in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        if not (entity.unique_id or "").startswith(prefix):
+            continue
+        rest = entity.unique_id[len(prefix) :]
+        if rest in VEHICLE_KEYS:
+            continue
+        if rest.split("_", 1)[0] not in entry.subentries:
+            ent_reg.async_remove(entity.entity_id)  # item was deleted
+        elif entity.config_subentry_id is not None:
+            ent_reg.async_update_entity(entity.entity_id, config_subentry_id=None)
+
+
+@callback
+def _async_remove_item_devices(hass: HomeAssistant, entry: VehicleConfigEntry) -> None:
+    """Delete the per-item devices created by the previous version."""
+    dev_reg = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        if (DOMAIN, entry.entry_id) in device.identifiers:
+            continue
+        if any(domain == DOMAIN for domain, _ in device.identifiers):
+            dev_reg.async_remove_device(device.id)
 
 
 async def _async_entry_updated(hass: HomeAssistant, entry: VehicleConfigEntry) -> None:

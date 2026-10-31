@@ -22,8 +22,7 @@ async def async_setup_entry(
     for subentry in entry.subentries.values():
         if subentry.subentry_type == SUBENTRY_TYPE_SERVICE:
             async_add_entities(
-                [ServiceCompleteButton(entry.runtime_data, subentry.subentry_id)],
-                config_subentry_id=subentry.subentry_id,
+                [ServiceCompleteButton(entry.runtime_data, subentry.subentry_id)]
             )
 
 
@@ -35,6 +34,11 @@ class ServiceCompleteButton(ServiceItemEntity, ButtonEntity):
     def __init__(self, coordinator: VehicleCoordinator, subentry_id: str) -> None:
         """Initialize the button."""
         super().__init__(coordinator, subentry_id, "complete")
+
+    @property
+    def name(self) -> str | None:
+        """Combine item name and action."""
+        return f"{self.item.name} complete" if self.item else None
 
     async def async_press(self) -> None:
         """Record the completion."""

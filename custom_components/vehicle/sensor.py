@@ -123,7 +123,7 @@ async def async_setup_entry(
             entities.append(ServiceDaysSensor(coordinator, subentry.subentry_id))
         if item.interval_km:
             entities.append(ServiceKmSensor(coordinator, subentry.subentry_id))
-        async_add_entities(entities, config_subentry_id=subentry.subentry_id)
+        async_add_entities(entities)
 
 
 class VehicleSensor(VehicleEntity, SensorEntity):
@@ -173,7 +173,10 @@ class ServiceStatusSensor(ServiceItemEntity, SensorEntity):
         super().__init__(coordinator, subentry_id, "status")
         self._attr_options = [status.value for status in ServiceStatus]
 
-    _attr_name = None
+    @property
+    def name(self) -> str | None:
+        """Use the service item name."""
+        return self.item.name if self.item else None
 
     @property
     def icon(self) -> str | None:
@@ -218,6 +221,11 @@ class ServiceDaysSensor(ServiceItemEntity, SensorEntity):
         super().__init__(coordinator, subentry_id, "days_remaining")
 
     @property
+    def name(self) -> str | None:
+        """Combine item name and measure."""
+        return f"{self.item.name} days remaining" if self.item else None
+
+    @property
     def native_value(self) -> int | None:
         """Return the days remaining."""
         return self.item.info.days_remaining if self.item else None
@@ -235,6 +243,11 @@ class ServiceKmSensor(ServiceItemEntity, SensorEntity):
     def __init__(self, coordinator: VehicleCoordinator, subentry_id: str) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, subentry_id, "km_remaining")
+
+    @property
+    def name(self) -> str | None:
+        """Combine item name and measure."""
+        return f"{self.item.name} km remaining" if self.item else None
 
     @property
     def native_value(self) -> float | None:

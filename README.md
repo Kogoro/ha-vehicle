@@ -63,7 +63,7 @@ Per vehicle:
 | `sensor.<vehicle>_cost_per_km` | Fuel + charge cost per km |
 | `sensor.<vehicle>_cost_this_month` | Fuel + charge cost in the current month |
 
-Per service item (each item is its own device, linked to the vehicle device, so the vehicle's own entities are never mixed with item entities):
+Per service item (these share the vehicle's single device, so the UI shows one device per vehicle; the item's name is part of the entity name):
 
 | Entity | Description |
 |--------|-------------|
@@ -110,9 +110,11 @@ type: custom:vehicle-card
 entity: sensor.golf_odometer
 ```
 
+In the visual editor you pick the **vehicle** (there is exactly one device per vehicle, e.g. *Golf*). In YAML, use either `device` (the device id) or `entity` (any entity of the vehicle, e.g. its odometer).
+
 | Option | Default | Description |
 |--------|---------|-------------|
-| `entity` | — | Any sensor of the vehicle, e.g. the odometer |
+| `device` / `entity` | — | The vehicle: its device id, or any of its entities (YAML only) |
 | `title` | vehicle name | Card title |
 | `show_stats` | `true` | Consumption and cost row |
 | `show_log` | `true` | Recent refuels/charges |
@@ -128,7 +130,7 @@ entity: sensor.golf_odometer
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `entity` | — | Any sensor of the vehicle |
+| `device` / `entity` | — | The vehicle: its device id, or any of its entities (YAML only) |
 | `title` | auto | Card title |
 
 ### Receipts and invoices

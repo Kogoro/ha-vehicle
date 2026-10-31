@@ -229,39 +229,70 @@ def _find_device(dev_reg, entry_id, identifier):
     return dev_reg.async_get_device(identifiers={identifier})
 
 
-async def test_service_items_have_own_devices(hass: HomeAssistant) -> None:
-    """Items get their own device linked to the vehicle; the vehicle device is not touched."""
+async def test_one_device_per_vehicle(hass: HomeAssistant) -> None:
+    """Vehicle and service item entities share ONE device; adding items never changes it."""
     from homeassistant.config_entries import ConfigSubentry
     from homeassistant.helpers import device_registry as dr
 
     entry = await _setup(hass)
     dev_reg = dr.async_get(hass)
     ent_reg = er.async_get(hass)
-    vehicle_dev = _find_device(dev_reg, entry.entry_id, (DOMAIN, entry.entry_id))
-    assert vehicle_dev is not None
-    odometer = ent_reg.async_get(_entity(hass, "sensor", "_odometer"))
-    cost = ent_reg.async_get(_entity(hass, "sensor", "_cost_per_km"))
-    assert odometer.device_id == cost.device_id == vehicle_dev.id
-
-    for item in ("oil", "tires"):
-        item_dev = _find_device(dev_reg, entry.entry_id, (DOMAIN, f"{entry.entry_id}_{item}"))
-        assert item_dev is not None and item_dev.id != vehicle_dev.id
-        assert item_dev.via_device_id == vehicle_dev.id
-        status = ent_reg.async_get(_entity(hass, "sensor", f"{item}_status"))
-        assert status.device_id == item_dev.id and status.config_subentry_id == item
-    assert hass.states.get(_entity(hass, "sensor", "oil_status")).name == "Golf Oil change"
+    devices = dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
+    assert [d.name for d in devices] == ["Golf"]
+    vehicle_dev = devices[0]
     assert _device_subentries(vehicle_dev, entry.entry_id) == {None}
 
-    # adding another item later leaves the vehicle device and its entities alone
+    vehicle_entities = er.async_entries_for_config_entry(ent_reg, entry.entry_id)
+    assert len(vehicle_entities) > 10
+    assert {e.device_id for e in vehicle_entities} == {vehicle_dev.id}
+    assert {e.config_subentry_id for e in vehicle_entities} == {None}
+    assert hass.states.get(_entity(hass, "sensor", "oil_status")).name == "Golf Oil change"
+
     hass.config_entries.async_add_subentry(
         entry,
         ConfigSubentry(data={"interval_km": 40000}, subentry_type="service_item", title="Brakes", unique_id=None),
     )
     await hass.async_block_till_done()
-    assert _device_subentries(dev_reg.async_get(vehicle_dev.id), entry.entry_id) == {None}
-    assert ent_reg.async_get(odometer.entity_id).device_id == vehicle_dev.id
-    brakes = ent_reg.async_get(next(s.entity_id for s in hass.states.async_all("sensor") if s.name == "Golf Brakes"))
-    assert brakes.device_id != vehicle_dev.id
+    devices = dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
+    assert [d.id for d in devices] == [vehicle_dev.id]
+    assert _device_subentries(devices[0], entry.entry_id) == {None}
+    assert any(s.name == "Golf Brakes" for s in hass.states.async_all("sensor"))
+    assert ent_reg.async_get(_entity(hass, "sensor", "_odometer")).device_id == vehicle_dev.id
+
+
+async def test_migrates_per_item_devices_and_removes_deleted_items(hass: HomeAssistant) -> None:
+    """Layouts of earlier versions (device per item, entities on subentries) collapse to one device."""
+    from homeassistant.helpers import device_registry as dr
+
+    entry = MockConfigEntry(
+        domain=DOMAIN, title="Old", unique_id="old",
+        data={"fuel_type": "petrol", "warn_days": 30, "warn_km": 1000},
+        subentries_data=[ConfigSubentryData(
+            data={"interval_days": 30}, subentry_type="service_item", title="Item",
+            subentry_id="sub1", unique_id=None)],
+    )
+    entry.add_to_hass(hass)
+    dev_reg = dr.async_get(hass)
+    ent_reg = er.async_get(hass)
+    item_dev = dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id, config_subentry_id="sub1",
+        identifiers={(DOMAIN, f"{entry.entry_id}_sub1")}, name="Old Item",
+    )
+    old = ent_reg.async_get_or_create(
+        "sensor", DOMAIN, f"{entry.entry_id}_sub1_status", config_entry=entry,
+        config_subentry_id="sub1", device_id=item_dev.id,
+    )
+    gone = ent_reg.async_get_or_create(
+        "sensor", DOMAIN, f"{entry.entry_id}_deleted_status", config_entry=entry,
+    )
+    assert await async_setup_component(hass, DOMAIN, {})
+    await hass.async_block_till_done()
+
+    devices = dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
+    assert [d.name for d in devices] == ["Old"]
+    moved = ent_reg.async_get(old.entity_id)
+    assert moved.device_id == devices[0].id and moved.config_subentry_id is None
+    assert ent_reg.async_get(gone.entity_id) is None
 
 
 async def test_old_shared_device_is_unlinked_from_items(hass: HomeAssistant) -> None:

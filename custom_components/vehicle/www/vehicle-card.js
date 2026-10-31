@@ -56,29 +56,30 @@ const openReceipt = async (hass, receipt) => {
   }
 };
 
-const findVehicle = (hass, entityId) => {
-  const reg = hass.entities?.[entityId];
+// A card is configured with the vehicle's device (`device`, chosen in the editor) or,
+// in YAML, with any entity of the vehicle (`entity`, e.g. its odometer sensor).
+const vehicleDeviceId = (hass, config) => config.device || hass.entities?.[config.entity]?.device_id;
+
+const findVehicle = (hass, config) => {
+  const deviceId = vehicleDeviceId(hass, config);
   const result = { items: [] };
-  if (!reg?.device_id) return result;
-  // Service items live on their own devices, linked to the vehicle device.
-  const vehicleDeviceId = hass.devices?.[reg.device_id]?.via_device_id || reg.device_id;
+  if (!deviceId) return result;
   for (const [id, e] of Object.entries(hass.entities)) {
-    if (e.platform !== "vehicle" || !e.device_id) continue;
+    if (e.platform !== "vehicle" || e.device_id !== deviceId) continue;
     const state = hass.states[id];
-    if (!state) continue;
-    if (e.device_id === vehicleDeviceId) {
-      if (e.translation_key) result[e.translation_key] = state;
-    } else if (hass.devices?.[e.device_id]?.via_device_id === vehicleDeviceId && e.translation_key === "service_status") {
-      result.items.push(state);
-    }
+    if (!state || !e.translation_key) continue;
+    if (e.translation_key === "service_status") result.items.push(state);
+    else result[e.translation_key] = state;
   }
-  result.device = hass.devices?.[vehicleDeviceId];
+  result.device = hass.devices?.[deviceId];
   return result;
 };
 
+const describeConfig = (config) => config.device || config.entity || "?";
+
 class VehicleCard extends HTMLElement {
   setConfig(config) {
-    if (!config.entity) throw new Error("Select an entity of your vehicle (e.g. its odometer).");
+    if (!config.device && !config.entity) throw new Error("Select a vehicle.");
     this._config = { show_stats: true, show_log: true, ...config };
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this._render();
@@ -98,14 +99,14 @@ class VehicleCard extends HTMLElement {
   }
 
   static getStubConfig(hass) {
-    const entity = Object.keys(hass.entities || {}).find(
-      (id) => hass.entities[id].platform === "vehicle" && hass.entities[id].translation_key === "odometer"
+    const odometer = Object.values(hass.entities || {}).find(
+      (e) => e.platform === "vehicle" && e.translation_key === "odometer"
     );
-    return { entity: entity || "" };
+    return { device: odometer?.device_id || "" };
   }
 
   _vehicleEntities() {
-    return findVehicle(this._hass, this._config.entity);
+    return findVehicle(this._hass, this._config);
   }
 
   _fmt(value, digits = 0) {
@@ -132,7 +133,7 @@ class VehicleCard extends HTMLElement {
     const v = this._vehicleEntities();
     const odo = v.odometer;
     if (!odo) {
-      this.shadowRoot.innerHTML = `<ha-card><div class="empty">Vehicle entities not found for ${esc(cfg.entity)}.</div></ha-card>${this._style()}`;
+      this.shadowRoot.innerHTML = `<ha-card><div class="empty">Vehicle not found (${esc(describeConfig(cfg))}).</div></ha-card>${this._style()}`;
       return;
     }
     const title = cfg.title || v.device?.name_by_user || v.device?.name || "Vehicle";
@@ -303,9 +304,20 @@ class VehicleCardEditor extends HTMLElement {
     else this._render();
   }
 
+  _data() {
+    // YAML cards may use `entity`; show (and, once edited, save) the vehicle instead
+    const { entity, ...rest } = this._config;
+    const device = rest.device || this._hass.entities?.[entity]?.device_id;
+    return { ...this._defaults(), ...(device ? { ...rest, device } : this._config) };
+  }
+
+  _defaults() {
+    return { show_stats: true, show_log: true };
+  }
+
   _schema() {
     return [
-      { name: "entity", required: true, selector: { entity: { integration: "vehicle", domain: "sensor" } } },
+      { name: "device", required: true, selector: { device: { integration: "vehicle" } } },
       { name: "title", selector: { text: {} } },
       { name: "show_stats", selector: { boolean: {} } },
       { name: "show_log", selector: { boolean: {} } },
@@ -313,7 +325,7 @@ class VehicleCardEditor extends HTMLElement {
   }
 
   _labels() {
-    return { entity: "Vehicle (any sensor, e.g. odometer)", title: "Title", show_stats: "Show statistics", show_log: "Show recent refuels" };
+    return { device: "Vehicle", title: "Title", show_stats: "Show statistics", show_log: "Show recent refuels" };
   }
 
   _render() {
@@ -328,7 +340,7 @@ class VehicleCardEditor extends HTMLElement {
       this.appendChild(this._form);
     }
     this._form.hass = this._hass;
-    this._form.data = this._config;
+    this._form.data = this._data();
     this._form.schema = this._schema();
     this._form.computeLabel = (s) => this._labels()[s.name] || s.name;
   }
@@ -336,7 +348,7 @@ class VehicleCardEditor extends HTMLElement {
 
 class VehicleLogCard extends HTMLElement {
   setConfig(config) {
-    if (!config.entity) throw new Error("Select an entity of your vehicle (e.g. its odometer).");
+    if (!config.device && !config.entity) throw new Error("Select a vehicle.");
     this._config = config;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this._built = false;
@@ -362,13 +374,13 @@ class VehicleLogCard extends HTMLElement {
   }
 
   _fuelType() {
-    return findVehicle(this._hass, this._config.entity).odometer?.attributes.fuel_type;
+    return findVehicle(this._hass, this._config).odometer?.attributes.fuel_type;
   }
 
   _build() {
-    const v = findVehicle(this._hass, this._config.entity);
+    const v = findVehicle(this._hass, this._config);
     if (!v.odometer) {
-      this.shadowRoot.innerHTML = `<ha-card><div class="empty">Vehicle entities not found for ${esc(this._config.entity)}.</div></ha-card>${this._style()}`;
+      this.shadowRoot.innerHTML = `<ha-card><div class="empty">Vehicle not found (${esc(describeConfig(this._config))}).</div></ha-card>${this._style()}`;
       return;
     }
     this._built = true;
@@ -472,7 +484,7 @@ class VehicleLogCard extends HTMLElement {
 
   _hints() {
     if (!this._built) return;
-    const v = findVehicle(this._hass, this._config.entity);
+    const v = findVehicle(this._hass, this._config);
     const charge = this._kind === "charge";
     const unit = charge ? "kWh" : "L";
     const currency = this._hass.config?.currency || "";
@@ -491,7 +503,7 @@ class VehicleLogCard extends HTMLElement {
     const root = this.shadowRoot;
     const charge = this._kind === "charge";
     const data = {
-      entity_id: this._config.entity,
+      entity_id: findVehicle(this._hass, this._config).odometer?.entity_id,
       date: root.querySelector("[name=date]").value,
       [charge ? "kwh" : "liters"]: Number(this._amount.value),
       [charge ? "price_per_kwh" : "price_per_liter"]: Number(this._price.value),
@@ -543,15 +555,19 @@ class VehicleLogCard extends HTMLElement {
 }
 
 class VehicleLogCardEditor extends VehicleCardEditor {
+  _defaults() {
+    return {};
+  }
+
   _schema() {
     return [
-      { name: "entity", required: true, selector: { entity: { integration: "vehicle", domain: "sensor" } } },
+      { name: "device", required: true, selector: { device: { integration: "vehicle" } } },
       { name: "title", selector: { text: {} } },
     ];
   }
 
   _labels() {
-    return { entity: "Vehicle (any sensor, e.g. odometer)", title: "Title" };
+    return { device: "Vehicle", title: "Title" };
   }
 }
 

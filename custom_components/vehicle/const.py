@@ -34,6 +34,17 @@ SERVICE_COMPLETE_SERVICE = "complete_service"
 EVENT_SERVICE_OVERDUE = "vehicle_service_overdue"
 EVENT_SERVICE_COMPLETED = "vehicle_service_completed"
 
+# unique-id suffixes of the vehicle-level entities (everything else belongs to a service item)
+VEHICLE_KEYS = (
+    "odometer",
+    "fuel_consumption",
+    "energy_consumption",
+    "fuel_price",
+    "energy_price",
+    "cost_per_km",
+    "monthly_cost",
+)
+
 # Number of log entries exposed as attribute
 RECENT_LOG_SIZE = 10
 

@@ -28,10 +28,12 @@ class VehicleEntity(CoordinatorEntity[VehicleCoordinator]):
 
 
 class ServiceItemEntity(VehicleEntity):
-    """An entity belonging to a service item (subentry).
+    """An entity of a service item.
 
-    Every service item gets its own device, linked to the vehicle device, so
-    adding or editing an item never touches the vehicle-level device.
+    Items share the vehicle's device, so the UI only ever shows one device per
+    vehicle. Their entities are deliberately not attached to the config
+    subentry: on current Home Assistant versions that would move the shared
+    device onto the subentry.
     """
 
     def __init__(
@@ -40,15 +42,6 @@ class ServiceItemEntity(VehicleEntity):
         """Initialize the entity."""
         super().__init__(coordinator, f"{subentry_id}_{key}")
         self.subentry_id = subentry_id
-        entry = coordinator.config_entry
-        item = coordinator.data.items[subentry_id]
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{entry.entry_id}_{subentry_id}")},
-            name=f"{entry.title} {item.name}",
-            manufacturer="Vehicle",
-            model="Service item",
-            via_device=(DOMAIN, entry.entry_id),
-        )
 
     @property
     def item(self) -> ServiceItemData | None:

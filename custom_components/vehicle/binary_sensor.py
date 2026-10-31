@@ -25,8 +25,7 @@ async def async_setup_entry(
     for subentry in entry.subentries.values():
         if subentry.subentry_type == SUBENTRY_TYPE_SERVICE:
             async_add_entities(
-                [ServiceOverdueSensor(entry.runtime_data, subentry.subentry_id)],
-                config_subentry_id=subentry.subentry_id,
+                [ServiceOverdueSensor(entry.runtime_data, subentry.subentry_id)]
             )
 
 
@@ -39,6 +38,11 @@ class ServiceOverdueSensor(ServiceItemEntity, BinarySensorEntity):
     def __init__(self, coordinator: VehicleCoordinator, subentry_id: str) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, subentry_id, "overdue")
+
+    @property
+    def name(self) -> str | None:
+        """Combine item name and measure."""
+        return f"{self.item.name} overdue" if self.item else None
 
     @property
     def is_on(self) -> bool | None:
