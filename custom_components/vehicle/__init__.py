@@ -31,7 +31,7 @@ from .store import VehicleStore
 _LOGGER = logging.getLogger(__name__)
 
 FRONTEND_SCRIPT_PATH = f"/{DOMAIN}/vehicle-card.js"
-FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.1.0"
+FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.2.0"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 

@@ -6,6 +6,10 @@ views:
         entity: sensor.golf_odometer
       - type: custom:vehicle-card
         entity: sensor.tesla_odometer
+      - type: custom:vehicle-log-card
+        entity: sensor.golf_odometer
+      - type: custom:vehicle-log-card
+        entity: sensor.tesla_odometer
       - type: entities
         title: Single values (standard cards)
         entities:

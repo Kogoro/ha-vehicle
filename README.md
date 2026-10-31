@@ -12,7 +12,7 @@ A custom Home Assistant integration for tracking your vehicles: service and main
 - **Mileage** — link an existing odometer sensor (miles are converted to km) or enter readings manually. Fuel/charge logs and completed services raise the manual odometer automatically.
 - **Fuel & charging log** — log refuels (liters) and charges (kWh) with cost and odometer. Prices per liter / kWh are recorded with every entry for trends. Get consumption (L/100 km, kWh/100 km), cost per km and cost this month.
 - **Events** — `vehicle_service_overdue` and `vehicle_service_completed` for automations.
-- **Lovelace card** — `vehicle-card` with a visual editor. Single values can be shown with any standard HA card.
+- **Lovelace cards** — `vehicle-card` (overview) and `vehicle-log-card` (add fuel/charge), both with a visual editor. Single values can be shown with any standard HA card.
 
 ![Dashboard with two demo vehicles](docs/dashboard.png)
 
@@ -109,6 +109,22 @@ entity: sensor.golf_odometer
 | `title` | vehicle name | Card title |
 | `show_stats` | `true` | Consumption and cost row |
 | `show_log` | `true` | Recent refuels/charges |
+
+### `vehicle-log-card` — add fuel / charge
+
+A small form to log a refuel or charge (date, liters or kWh, price per unit, optional odometer). It shows the total, hints the last price and current odometer, and calls `vehicle.add_fuel` / `vehicle.add_charge`. Hybrids get a Fuel/Charge switch.
+
+```yaml
+type: custom:vehicle-log-card
+entity: sensor.golf_odometer
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `entity` | — | Any sensor of the vehicle |
+| `title` | auto | Card title |
+
+### `vehicle-card` details
 
 It lists service items sorted by urgency with a button to mark them done. For a single value use e.g. a tile or entity card on `sensor.oil_change_km_remaining`.
 
