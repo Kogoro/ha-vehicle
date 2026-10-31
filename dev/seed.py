@@ -245,11 +245,22 @@ def ensure_dashboard(token):
     ws = WebSocket(BASE, token)
     try:
         existing = {d["url_path"]: d for d in ws.call("lovelace/dashboards/list")}
-        if DASHBOARD_URL_PATH in existing:
-            print(f"Dashboard: already present ({existing[DASHBOARD_URL_PATH].get('mode', 'yaml')} mode)")
-            return
         with open(DASHBOARD_FILE, encoding="utf-8") as handle:
             config = json.load(handle)
+        if DASHBOARD_URL_PATH in existing:
+            mode = existing[DASHBOARD_URL_PATH].get("mode", "yaml")
+            if mode == "storage":
+                # a dashboard from an earlier seed still uses the removed card names
+                try:
+                    current = json.dumps(ws.call("lovelace/config", url_path=DASHBOARD_URL_PATH))
+                except SystemExit:
+                    current = ""
+                if "custom:vehicle-card" in current or "custom:vehicle-log-card" in current:
+                    ws.call("lovelace/config/save", url_path=DASHBOARD_URL_PATH, config=config)
+                    print("Dashboard: updated to the current cards (info, activity, entry)")
+                    return
+            print(f"Dashboard: already present ({mode} mode)")
+            return
         ws.call(
             "lovelace/dashboards/create",
             url_path=DASHBOARD_URL_PATH, title="Vehicle", icon="mdi:car",
