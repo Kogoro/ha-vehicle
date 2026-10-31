@@ -163,7 +163,7 @@ The first refresh after a restart only records which items are already overdue, 
 
 ### Local test instance
 
-Needs Docker. Starts Home Assistant with the integration mounted, then creates a user (`dev` / `dev`) and two demo vehicles (a petrol car with fuel log and a linked-odometer EV with charges):
+Starts Home Assistant with the integration loaded, then creates a user (`dev` / `dev`) and two demo vehicles (a petrol car with fuel log and a linked-odometer EV with charges):
 
 ```bash
 docker compose -f dev/docker-compose.yml up -d
@@ -175,7 +175,11 @@ python3 dev/seed.py
 
 The seed also adds a **fake AI task provider** (`dev/config/custom_components/fake_ai_task`) that returns canned values instead of reading the image, so you can try *Scan with AI* without an AI account. It is for development only.
 
-The seed waits for Home Assistant to finish starting, so you can run it right after `docker compose up`. It is safe to repeat, also after an interrupted run. Open <http://localhost:8123/dashboard-vehicle>. After code changes restart with `docker compose -f dev/docker-compose.yml restart`. Reset everything by stopping the container and deleting `dev/config/.storage` plus the other generated files in `dev/config` (everything except `configuration.yaml` and `dashboards/`).
+The seed waits for Home Assistant to finish starting, so you can run it right after `docker compose up`. It is safe to repeat, also after an interrupted run. Open <http://localhost:8123/dashboard-vehicle>.
+
+**Without Docker:** install Home Assistant (`pip install homeassistant`, Python 3.13 or newer) and run `dev/run-local.sh`, then `python3 dev/seed.py` in a second terminal. The script builds `dev/.local-config` with links to this repo; Home Assistant only loads integrations that live inside its own config directory, so starting `hass -c dev/config` directly does **not** find the `vehicle` integration and the seed fails with *"Invalid handler specified"*.
+
+After code changes restart with `docker compose -f dev/docker-compose.yml restart` (or restart `dev/run-local.sh`). Reset everything by stopping Home Assistant and deleting the generated data: `dev/config/.storage` and the other generated files in `dev/config` (everything except `configuration.yaml`, `dashboards/` and `custom_components/fake_ai_task`) for Docker, or `dev/.local-config` for the local script. Tested with Home Assistant 2026.2 and 2026.10.
 
 ### Tests and lint
 

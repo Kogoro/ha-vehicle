@@ -143,6 +143,25 @@ def wait_until_running(token):
     print("  (Home Assistant is still starting; continuing anyway)")
 
 
+def start_flow(api, handler):
+    """Start a config flow; explain clearly when Home Assistant does not know the integration."""
+    try:
+        return api("POST", "/api/config/config_entries/flow", {"handler": handler})
+    except SystemExit as err:
+        if "Invalid handler" not in str(err):
+            raise
+        raise SystemExit(
+            f"Home Assistant does not know the integration '{handler}'.\n"
+            f"  - It must be inside the config directory of the running instance:\n"
+            f"    <config>/custom_components/{handler}/manifest.json\n"
+            f"  - Docker:  docker compose -f dev/docker-compose.yml up -d   (mounts it for you)\n"
+            f"  - Local:   dev/run-local.sh                                 (links it for you)\n"
+            f"  - If it is there, the integration failed to load: check the Home Assistant log for\n"
+            f"    'Unable to prepare setup', 'Error importing' or 'requires Home Assistant'.\n"
+            f"  Restart Home Assistant after adding the folder."
+        ) from None
+
+
 def main():
     token = login()
     wait_until_running(token)
@@ -157,10 +176,14 @@ def main():
         return (today - datetime.timedelta(days=days)).isoformat()
 
     if not api("GET", "/api/config/config_entries/entry?domain=fake_ai_task"):
-        flow = api("POST", "/api/config/config_entries/flow", {"handler": "fake_ai_task"})
-        if flow["type"] != "create_entry":
-            api("POST", f"/api/config/config_entries/flow/{flow['flow_id']}", {})
-        print("Fake AI task provider created (canned values, dev only)")
+        try:
+            flow = start_flow(api, "fake_ai_task")
+            if flow["type"] != "create_entry":
+                api("POST", f"/api/config/config_entries/flow/{flow['flow_id']}", {})
+            print("Fake AI task provider created (canned values, dev only)")
+        except SystemExit as err:
+            # optional extra: needs Home Assistant 2025.8+ (ai_task) and the dev config folder
+            print(f"  (skipping the fake AI provider: {str(err).splitlines()[0]})")
 
     vehicles = {
         "Golf": {
@@ -188,7 +211,7 @@ def main():
         if name in existing:
             print(f"{name}: already exists, skipping")
             continue
-        flow = api("POST", "/api/config/config_entries/flow", {"handler": "vehicle"})
+        flow = start_flow(api, "vehicle")
         done = api("POST", f"/api/config/config_entries/flow/{flow['flow_id']}", {"name": name, **spec["data"]})
         entry_id = done["result"]["entry_id"]
         for item in spec["items"]:
