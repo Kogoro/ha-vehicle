@@ -430,7 +430,9 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             _LOGGER.debug("Removed %s unused uploaded receipts", removed)
 
     hass.async_create_task(_cleanup())
-    async_track_time_interval(hass, _cleanup, datetime.timedelta(hours=24))
+    async_track_time_interval(
+        hass, _cleanup, datetime.timedelta(hours=24), cancel_on_shutdown=True
+    )
 
     return True
 
@@ -466,6 +468,11 @@ def _async_prepare_devices(
         manufacturer="Vehicle",
         model=coordinator.fuel_type.value.capitalize(),
     )
+    if hasattr(device, "config_subentry_id"):
+        # Home Assistant 2026.10+: a device belongs to exactly one subentry.
+        if device.config_subentry_id is not None:
+            dev_reg.async_update_device(device.id, new_config_subentry_id=None)
+        return
     for subentry_id in device.config_entries_subentries.get(entry.entry_id, set()):
         if subentry_id is not None:
             dev_reg.async_update_device(

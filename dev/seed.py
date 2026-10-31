@@ -18,7 +18,8 @@ CLIENT_ID = BASE + "/"
 USER = PASSWORD = "dev"
 
 
-def call(method, path, body=None, token=None, form=False):
+def call(method, path, body=None, token=None, form=False, retries=6):
+    """HTTP helper. Retries timeouts: Home Assistant is slow while it starts up."""
     data = None
     headers = {}
     if body is not None:
@@ -30,29 +31,45 @@ def call(method, path, body=None, token=None, form=False):
             headers["Content-Type"] = "application/json"
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(BASE + path, data=data, method=method, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read()
-    except urllib.error.HTTPError as err:
-        if path == "/api/onboarding":
-            raise
-        raise SystemExit(f"{method} {path} -> {err.code}: {err.read().decode()[:500]}") from None
-    return json.loads(raw) if raw else None
+    for attempt in range(retries):
+        req = urllib.request.Request(BASE + path, data=data, method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                raw = resp.read()
+            return json.loads(raw) if raw else None
+        except urllib.error.HTTPError as err:
+            detail = err.read().decode()[:500]
+            if path == "/api/onboarding":
+                raise
+            raise SystemExit(f"{method} {path} -> {err.code}: {detail}") from None
+        except (TimeoutError, urllib.error.URLError, ConnectionError, OSError):
+            if attempt == retries - 1:
+                raise
+            print(f"  ... waiting for Home Assistant ({method} {path})")
+            time.sleep(5)
 
 
 def wait_for_ha():
     """Return the onboarding steps; an already onboarded instance answers 404."""
-    for _ in range(120):
+    for _ in range(180):
         try:
-            return [{"step": s["step"], "done": s["done"]} for s in call("GET", "/api/onboarding")]
+            return [{"step": s["step"], "done": s["done"]} for s in call("GET", "/api/onboarding", retries=1)]
         except urllib.error.HTTPError as err:
-            if err.code == 404:
+            if err.code == 404 and providers_ready():
                 return [{"step": "user", "done": True}]
             time.sleep(2)
-        except (urllib.error.URLError, ConnectionError, OSError):
+        except (TimeoutError, urllib.error.URLError, ConnectionError, OSError):
             time.sleep(2)
     raise SystemExit(f"Home Assistant not reachable at {BASE}")
+
+
+def providers_ready():
+    """The auth component answers once Home Assistant is far enough started."""
+    try:
+        call("GET", "/auth/providers", retries=1)
+    except (SystemExit, TimeoutError, urllib.error.URLError, ConnectionError, OSError):
+        return False
+    return True
 
 
 def token_from_code(code):
@@ -63,19 +80,7 @@ def token_from_code(code):
     )["access_token"]
 
 
-def login():
-    steps = {s["step"]: s["done"] for s in wait_for_ha()}
-    if not steps.get("user"):
-        code = call("POST", "/api/onboarding/users", {
-            "client_id": CLIENT_ID, "name": "Dev", "username": USER,
-            "password": PASSWORD, "language": "en",
-        })["auth_code"]
-        token = token_from_code(code)
-        for step, body in (("core_config", {}), ("analytics", {}),
-                           ("integration", {"client_id": CLIENT_ID, "redirect_uri": CLIENT_ID})):
-            if not steps.get(step):
-                call("POST", f"/api/onboarding/{step}", body, token=token)
-        return token
+def login_with_password():
     flow = call("POST", "/auth/login_flow", {
         "client_id": CLIENT_ID, "handler": ["homeassistant", None], "redirect_uri": CLIENT_ID,
     })
@@ -83,12 +88,65 @@ def login():
         "client_id": CLIENT_ID, "username": USER, "password": PASSWORD,
     })
     if result.get("type") != "create_entry":
-        raise SystemExit("Login failed (is the dev user's password still 'dev'?)")
+        raise SystemExit("Login failed. The instance has another 'dev' user or a changed password; "
+                         "reset it by deleting dev/config/.storage and restarting.")
     return token_from_code(result["result"])
+
+
+def create_onboarding_user():
+    """Create the first user. Returns (token, username)."""
+    # An earlier interrupted run can leave the user created but the wizard step
+    # unfinished. The step can only be completed by creating a user, so fall
+    # back to dev2, dev3, ... in that case.
+    for username in [USER, *[f"{USER}{n}" for n in range(2, 6)]]:
+        try:
+            code = call("POST", "/api/onboarding/users", {
+                "client_id": CLIENT_ID, "name": username.capitalize(), "username": username,
+                "password": PASSWORD, "language": "en",
+            }, retries=1)["auth_code"]
+            return token_from_code(code), username
+        except SystemExit as err:
+            if "username_already_exists" not in str(err):
+                raise
+    raise SystemExit("Could not finish onboarding. Delete dev/config/.storage and restart Home Assistant.")
+
+
+def login():
+    steps = {s["step"]: s["done"] for s in wait_for_ha()}
+    token = None
+    if not steps.get("user"):
+        token, username = create_onboarding_user()
+        if username != USER:
+            print(f"  (the user '{USER}' existed from an interrupted run; onboarding finished with '{username}')")
+            print(f"  log in as {username} / {PASSWORD}  (or {USER} / {PASSWORD})")
+    if token is None:
+        token = login_with_password()
+    for step, body in (("core_config", {}), ("analytics", {}),
+                       ("integration", {"client_id": CLIENT_ID, "redirect_uri": CLIENT_ID})):
+        if steps.get(step) is False:
+            try:
+                call("POST", f"/api/onboarding/{step}", body, token=token)
+            except SystemExit as err:
+                print(f"  (onboarding step {step} skipped: {err})")
+    return token
+
+
+def wait_until_running(token):
+    """Block until Home Assistant has finished starting all integrations."""
+    for _ in range(120):
+        try:
+            if call("GET", "/api/config", token=token, retries=1).get("state") == "RUNNING":
+                return
+        except (SystemExit, TimeoutError, urllib.error.URLError, ConnectionError, OSError):
+            pass
+        time.sleep(3)
+    print("  (Home Assistant is still starting; continuing anyway)")
 
 
 def main():
     token = login()
+    wait_until_running(token)
+
     def api(method, path, body=None):
         return call(method, path, body, token=token)
 

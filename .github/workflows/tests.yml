@@ -6,12 +6,17 @@ on:
 
 jobs:
   pytest:
-    name: Pytest
+    name: Pytest (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.13 resolves an older Home Assistant, 3.14 the newest release
+        python: ["3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python }}
       - run: pip install pytest-homeassistant-custom-component home-assistant-frontend
       - run: pytest -q

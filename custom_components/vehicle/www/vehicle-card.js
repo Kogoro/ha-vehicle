@@ -555,17 +555,32 @@ class VehicleLogCardEditor extends VehicleCardEditor {
   }
 }
 
-customElements.define("vehicle-card", VehicleCard);
-customElements.define("vehicle-card-editor", VehicleCardEditor);
-customElements.define("vehicle-log-card", VehicleLogCard);
-customElements.define("vehicle-log-card-editor", VehicleLogCardEditor);
+// Home Assistant's frontend swaps window.customElements for a scoped-registry
+// polyfill while it boots. When this file is served from the service worker cache
+// it can run *before* that swap, and elements defined on the old registry are then
+// invisible to the dashboard ("Custom element doesn't exist"). So define the
+// elements only once the frontend itself is up.
+const defineAll = () => {
+  const elements = {
+    "vehicle-card": VehicleCard,
+    "vehicle-card-editor": VehicleCardEditor,
+    "vehicle-log-card": VehicleLogCard,
+    "vehicle-log-card-editor": VehicleLogCardEditor,
+  };
+  for (const [tag, cls] of Object.entries(elements)) {
+    if (!customElements.get(tag)) customElements.define(tag, cls);
+  }
+};
+if (customElements.get("home-assistant")) defineAll();
+else customElements.whenDefined("home-assistant").then(defineAll);
+
 window.customCards = window.customCards || [];
-window.customCards.push({
+if (!window.customCards.some((c) => c.type === "vehicle-card")) window.customCards.push({
   type: "vehicle-card",
   name: "Vehicle",
   description: "Odometer, service status, consumption and recent refuels of a vehicle.",
 });
-window.customCards.push({
+if (!window.customCards.some((c) => c.type === "vehicle-log-card")) window.customCards.push({
   type: "vehicle-log-card",
   name: "Vehicle: add fuel / charge",
   description: "Form to log a refuel or charging session with price per unit.",

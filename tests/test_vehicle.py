@@ -213,6 +213,22 @@ async def test_config_flow(hass: HomeAssistant) -> None:
     assert hass.states.get(_entity(hass, "sensor", "_odometer")) is not None
 
 
+def _device_subentries(device, entry_id) -> set:
+    """Subentry ids a device is linked to (works before and after HA 2026.10)."""
+    if hasattr(device, "config_subentry_id"):
+        return {device.config_subentry_id}
+    return set(device.config_entries_subentries[entry_id])
+
+
+def _find_device(dev_reg, entry_id, identifier):
+    """Look a device up by identifier (works before and after HA 2026.10)."""
+    if hasattr(dev_reg, "async_get_device_by_identifier"):
+        return dev_reg.async_get_device_by_identifier(
+            identifier, entry_id
+        ) or dev_reg.async_get_child_device_by_identifier(identifier, entry_id)
+    return dev_reg.async_get_device(identifiers={identifier})
+
+
 async def test_service_items_have_own_devices(hass: HomeAssistant) -> None:
     """Items get their own device linked to the vehicle; the vehicle device is not touched."""
     from homeassistant.config_entries import ConfigSubentry
@@ -221,20 +237,20 @@ async def test_service_items_have_own_devices(hass: HomeAssistant) -> None:
     entry = await _setup(hass)
     dev_reg = dr.async_get(hass)
     ent_reg = er.async_get(hass)
-    vehicle_dev = dev_reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    vehicle_dev = _find_device(dev_reg, entry.entry_id, (DOMAIN, entry.entry_id))
     assert vehicle_dev is not None
     odometer = ent_reg.async_get(_entity(hass, "sensor", "_odometer"))
     cost = ent_reg.async_get(_entity(hass, "sensor", "_cost_per_km"))
     assert odometer.device_id == cost.device_id == vehicle_dev.id
 
     for item in ("oil", "tires"):
-        item_dev = dev_reg.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_{item}")})
+        item_dev = _find_device(dev_reg, entry.entry_id, (DOMAIN, f"{entry.entry_id}_{item}"))
         assert item_dev is not None and item_dev.id != vehicle_dev.id
         assert item_dev.via_device_id == vehicle_dev.id
         status = ent_reg.async_get(_entity(hass, "sensor", f"{item}_status"))
         assert status.device_id == item_dev.id and status.config_subentry_id == item
     assert hass.states.get(_entity(hass, "sensor", "oil_status")).name == "Golf Oil change"
-    assert vehicle_dev.config_entries_subentries[entry.entry_id] == {None}
+    assert _device_subentries(vehicle_dev, entry.entry_id) == {None}
 
     # adding another item later leaves the vehicle device and its entities alone
     hass.config_entries.async_add_subentry(
@@ -242,7 +258,7 @@ async def test_service_items_have_own_devices(hass: HomeAssistant) -> None:
         ConfigSubentry(data={"interval_km": 40000}, subentry_type="service_item", title="Brakes", unique_id=None),
     )
     await hass.async_block_till_done()
-    assert dev_reg.async_get(vehicle_dev.id).config_entries_subentries[entry.entry_id] == {None}
+    assert _device_subentries(dev_reg.async_get(vehicle_dev.id), entry.entry_id) == {None}
     assert ent_reg.async_get(odometer.entity_id).device_id == vehicle_dev.id
     brakes = ent_reg.async_get(next(s.entity_id for s in hass.states.async_all("sensor") if s.name == "Golf Brakes"))
     assert brakes.device_id != vehicle_dev.id
@@ -264,8 +280,8 @@ async def test_old_shared_device_is_unlinked_from_items(hass: HomeAssistant) -> 
     old = dev_reg.async_get_or_create(
         config_entry_id=entry.entry_id, config_subentry_id="sub1", identifiers={(DOMAIN, entry.entry_id)}
     )
-    assert "sub1" in old.config_entries_subentries[entry.entry_id]
+    assert "sub1" in _device_subentries(old, entry.entry_id)
     assert await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done()
     new = dev_reg.async_get(old.id)
-    assert "sub1" not in new.config_entries_subentries.get(entry.entry_id, set())
+    assert "sub1" not in _device_subentries(new, entry.entry_id)
