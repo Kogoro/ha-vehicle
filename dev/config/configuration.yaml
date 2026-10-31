@@ -22,4 +22,4 @@ lovelace:
       title: Vehicle
       icon: mdi:car
       show_in_sidebar: true
-      filename: dashboards/vehicle.yaml
+      filename: dashboards/vehicle.json

@@ -175,7 +175,7 @@ python3 dev/seed.py
 
 The seed also adds a **fake AI task provider** (`dev/config/custom_components/fake_ai_task`) that returns canned values instead of reading the image, so you can try *Scan with AI* without an AI account. It is for development only.
 
-The seed waits for Home Assistant to finish starting, so you can run it right after `docker compose up`. It is safe to repeat, also after an interrupted run. Open <http://localhost:8123/dashboard-vehicle>.
+The seed creates the **Vehicle** dashboard itself (sidebar entry, from `dev/config/dashboards/vehicle.json`), whatever your `configuration.yaml` contains. It waits for Home Assistant to finish starting, so you can run it right after `docker compose up`. It is safe to repeat, also after an interrupted run. Open <http://localhost:8123/dashboard-vehicle>.
 
 **Without Docker:** install Home Assistant (`pip install homeassistant`, Python 3.13 or newer) and run `dev/run-local.sh`, then `python3 dev/seed.py` in a second terminal. The script builds `dev/.local-config` with links to this repo; Home Assistant only loads integrations that live inside its own config directory, so starting `hass -c dev/config` directly does **not** find the `vehicle` integration and the seed fails with *"Invalid handler specified"*.
 
