@@ -14,6 +14,7 @@ CONF_WARN_KM = "warn_km"
 
 # Service item (subentry) data
 SUBENTRY_TYPE_SERVICE = "service_item"
+SUBENTRY_TYPE_IMPORT = "import_items"
 CONF_INTERVAL_DAYS = "interval_days"
 CONF_INTERVAL_KM = "interval_km"
 CONF_LAST_DATE = "last_service_date"

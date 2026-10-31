@@ -73,6 +73,44 @@
       "abort": {
         "reconfigure_successful": "Service item updated."
       }
+    },
+    "import_items": {
+      "initiate_flow": {
+        "user": "Import common service items"
+      },
+      "entry_type": "Import from catalog",
+      "step": {
+        "user": {
+          "title": "Select categories",
+          "description": "Choose which kinds of service items to browse. You pick the individual items in the next step. Only items that fit this vehicle's drive type are offered.",
+          "data": {
+            "categories": "Categories"
+          }
+        },
+        "select_items": {
+          "title": "Select service items",
+          "description": "Pick the items to add, with their typical interval. Items marked • exists are already set up; importing them again creates duplicates.",
+          "data": {
+            "items": "Service items"
+          }
+        },
+        "configure": {
+          "title": "When were they last done?",
+          "description": "Used as the starting point for the due dates of all imported items. Leave it empty if you don't know; tracking by distance then starts at the current mileage. You can edit each item afterwards.",
+          "data": {
+            "last_service_date": "Last done on"
+          }
+        }
+      },
+      "error": {
+        "no_categories_selected": "Please select at least one category.",
+        "no_items_selected": "Please select at least one item."
+      },
+      "abort": {
+        "import_success": "Imported {count} service items.",
+        "catalog_empty": "There are no catalog items for this vehicle.",
+        "no_items_found": "No items found in the selected categories."
+      }
     }
   },
   "selector": {

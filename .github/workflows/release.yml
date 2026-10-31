@@ -1,0 +1,44 @@
+name: Release
+
+# Push a tag like v0.1.0 to publish a release. The tag must match the version in manifest.json.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches manifest.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(python3 -c "import json; print(json.load(open('custom_components/vehicle/manifest.json'))['version'])")"
+          if [ "$tag" != "$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match manifest version $version" >&2
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '$0 ~ "^## \\[?" v "\\]?$" {found=1; next} /^## / {found=0} found' CHANGELOG.md > release-notes.md
+          test -s release-notes.md || { echo "No CHANGELOG.md section for $version" >&2; exit 1; }
+
+      - name: Create zip for release
+        run: |
+          cd custom_components/vehicle
+          zip -r ../../vehicle.zip . -x "__pycache__/*" "*/__pycache__/*"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: vehicle.zip

@@ -29,7 +29,9 @@ Design mockups and decisions: [docs/design](docs/design).
 
 ### Manual
 
-Copy `custom_components/vehicle/` into your `config/custom_components/` directory and restart.
+Download `vehicle.zip` from the latest [release](https://github.com/Kogoro/ha-vehicle/releases), unpack it into `config/custom_components/vehicle/` (or copy the folder from this repository) and restart Home Assistant.
+
+Requires Home Assistant 2026.2 or newer (tested with 2026.2 and 2026.10). The AI scan additionally needs an AI provider with AI task support.
 
 ## Configuration
 
@@ -50,6 +52,10 @@ Open the vehicle entry and choose **Add service item**:
 
 - **Repeat every (days)** and/or **Repeat every (km)** — at least one is required.
 - **Last done on / Odometer at last service** — baseline for the first due date. The date defaults to today. If you leave the odometer empty, tracking of the km interval starts at the odometer when first seen.
+
+### Import common service items
+
+Open the vehicle entry and choose **Import common service items** (like the task import in [ha-task](https://github.com/Kogoro/ha-task)). Pick categories (engine, brakes, tires, inspections, comfort and electrics, electric and hybrid), then the items with their typical interval, for example *Oil and filter change (1 y / 15 000 km)*. Only items that fit the vehicle's drive type are offered: an electric car gets no oil change or spark plugs, a diesel gets a fuel filter but no spark plugs. Names are in English or German, following your language. Finally enter when they were last done (it defaults to today). Everything can be edited afterwards, and the catalog is [`service_catalog.json`](custom_components/vehicle/service_catalog.json).
 
 ## Entities
 

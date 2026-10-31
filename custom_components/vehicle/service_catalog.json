@@ -1,0 +1,589 @@
+{
+ "version": 1,
+ "categories": [
+  {
+   "id": "engine",
+   "name": {
+    "en": "Engine & drivetrain",
+    "de": "Motor & Antrieb"
+   },
+   "icon": "mdi:engine",
+   "items": [
+    {
+     "id": "oil_change",
+     "name": {
+      "en": "Oil and filter change",
+      "de": "Ölwechsel mit Filter"
+     },
+     "description": {
+      "en": "Change engine oil and oil filter",
+      "de": "Motoröl und Ölfilter wechseln"
+     },
+     "icon": "mdi:oil",
+     "interval_days": 365,
+     "interval_km": 15000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid"
+     ]
+    },
+    {
+     "id": "air_filter",
+     "name": {
+      "en": "Engine air filter",
+      "de": "Motorluftfilter"
+     },
+     "description": {
+      "en": "Replace the engine air filter",
+      "de": "Motorluftfilter ersetzen"
+     },
+     "icon": "mdi:air-filter",
+     "interval_days": 730,
+     "interval_km": 30000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid"
+     ]
+    },
+    {
+     "id": "spark_plugs",
+     "name": {
+      "en": "Spark plugs",
+      "de": "Zündkerzen"
+     },
+     "description": {
+      "en": "Replace the spark plugs",
+      "de": "Zündkerzen ersetzen"
+     },
+     "icon": "mdi:flash",
+     "interval_days": 1460,
+     "interval_km": 60000,
+     "applies_to": [
+      "petrol",
+      "hybrid"
+     ]
+    },
+    {
+     "id": "fuel_filter",
+     "name": {
+      "en": "Fuel filter",
+      "de": "Kraftstofffilter"
+     },
+     "description": {
+      "en": "Replace the fuel filter",
+      "de": "Kraftstofffilter ersetzen"
+     },
+     "icon": "mdi:filter-outline",
+     "interval_days": 1095,
+     "interval_km": 60000,
+     "applies_to": [
+      "diesel"
+     ]
+    },
+    {
+     "id": "timing_belt",
+     "name": {
+      "en": "Timing belt",
+      "de": "Zahnriemen"
+     },
+     "description": {
+      "en": "Replace the timing belt (check your manual; some engines use a chain)",
+      "de": "Zahnriemen ersetzen (Herstellerangaben beachten; manche Motoren haben eine Kette)"
+     },
+     "icon": "mdi:cog-clockwise",
+     "interval_days": 2190,
+     "interval_km": 120000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid"
+     ]
+    },
+    {
+     "id": "coolant",
+     "name": {
+      "en": "Coolant",
+      "de": "Kühlflüssigkeit"
+     },
+     "description": {
+      "en": "Check and replace the coolant",
+      "de": "Kühlflüssigkeit prüfen und wechseln"
+     },
+     "icon": "mdi:coolant-temperature",
+     "interval_days": 1825,
+     "interval_km": 100000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid"
+     ]
+    },
+    {
+     "id": "gearbox_oil",
+     "name": {
+      "en": "Transmission oil",
+      "de": "Getriebeöl"
+     },
+     "description": {
+      "en": "Change the transmission or reduction gear oil",
+      "de": "Getriebeöl bzw. Getriebe-Untersetzungsöl wechseln"
+     },
+     "icon": "mdi:cog-transfer",
+     "interval_days": 1825,
+     "interval_km": 90000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "brakes",
+   "name": {
+    "en": "Brakes",
+    "de": "Bremsen"
+   },
+   "icon": "mdi:car-brake-alert",
+   "items": [
+    {
+     "id": "brake_fluid",
+     "name": {
+      "en": "Brake fluid",
+      "de": "Bremsflüssigkeit"
+     },
+     "description": {
+      "en": "Replace the brake fluid",
+      "de": "Bremsflüssigkeit wechseln"
+     },
+     "icon": "mdi:car-brake-fluid-level",
+     "interval_days": 730,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "brake_pads_front",
+     "name": {
+      "en": "Brake pads (front)",
+      "de": "Bremsbeläge vorne"
+     },
+     "description": {
+      "en": "Check or replace the front brake pads",
+      "de": "Vordere Bremsbeläge prüfen oder ersetzen"
+     },
+     "icon": "mdi:car-brake-pad",
+     "interval_days": null,
+     "interval_km": 40000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "brake_pads_rear",
+     "name": {
+      "en": "Brake pads (rear)",
+      "de": "Bremsbeläge hinten"
+     },
+     "description": {
+      "en": "Check or replace the rear brake pads",
+      "de": "Hintere Bremsbeläge prüfen oder ersetzen"
+     },
+     "icon": "mdi:car-brake-pad",
+     "interval_days": null,
+     "interval_km": 60000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "brake_discs",
+     "name": {
+      "en": "Brake discs",
+      "de": "Bremsscheiben"
+     },
+     "description": {
+      "en": "Check or replace the brake discs",
+      "de": "Bremsscheiben prüfen oder ersetzen"
+     },
+     "icon": "mdi:disc",
+     "interval_days": null,
+     "interval_km": 80000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tires",
+   "name": {
+    "en": "Tires & wheels",
+    "de": "Reifen & Räder"
+   },
+   "icon": "mdi:car-tire-alert",
+   "items": [
+    {
+     "id": "tire_change",
+     "name": {
+      "en": "Seasonal tire change",
+      "de": "Saisonaler Reifenwechsel"
+     },
+     "description": {
+      "en": "Switch between summer and winter tires",
+      "de": "Zwischen Sommer- und Winterreifen wechseln"
+     },
+     "icon": "mdi:car-tire-alert",
+     "interval_days": 182,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "tire_pressure",
+     "name": {
+      "en": "Tire pressure check",
+      "de": "Reifendruck prüfen"
+     },
+     "description": {
+      "en": "Check the tire pressure, including the spare",
+      "de": "Reifendruck prüfen, auch am Ersatzrad"
+     },
+     "icon": "mdi:gauge",
+     "interval_days": 60,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "tire_rotation",
+     "name": {
+      "en": "Tire rotation",
+      "de": "Reifen umstecken"
+     },
+     "description": {
+      "en": "Rotate the tires for even wear",
+      "de": "Reifen für gleichmäßigen Verschleiß umstecken"
+     },
+     "icon": "mdi:rotate-3d-variant",
+     "interval_days": null,
+     "interval_km": 10000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "wheel_alignment",
+     "name": {
+      "en": "Wheel alignment",
+      "de": "Achsvermessung"
+     },
+     "description": {
+      "en": "Check the wheel alignment",
+      "de": "Spur und Sturz prüfen"
+     },
+     "icon": "mdi:car-cog",
+     "interval_days": 730,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "inspection",
+   "name": {
+    "en": "Inspections",
+    "de": "Inspektionen"
+   },
+   "icon": "mdi:clipboard-check-outline",
+   "items": [
+    {
+     "id": "service",
+     "name": {
+      "en": "Manufacturer service",
+      "de": "Herstellerinspektion"
+     },
+     "description": {
+      "en": "Regular service according to the maintenance plan",
+      "de": "Regelmäßige Inspektion laut Wartungsplan"
+     },
+     "icon": "mdi:car-wrench",
+     "interval_days": 365,
+     "interval_km": 15000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "legal_inspection",
+     "name": {
+      "en": "Legal inspection (TÜV / MOT)",
+      "de": "Hauptuntersuchung (TÜV/HU)"
+     },
+     "description": {
+      "en": "Mandatory roadworthiness inspection",
+      "de": "Gesetzlich vorgeschriebene Hauptuntersuchung"
+     },
+     "icon": "mdi:certificate-outline",
+     "interval_days": 730,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "emissions_test",
+     "name": {
+      "en": "Emissions test",
+      "de": "Abgasuntersuchung"
+     },
+     "description": {
+      "en": "Emissions test, where required",
+      "de": "Abgasuntersuchung, soweit vorgeschrieben"
+     },
+     "icon": "mdi:smoke",
+     "interval_days": 730,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid"
+     ]
+    },
+    {
+     "id": "first_aid_kit",
+     "name": {
+      "en": "First aid kit expiry",
+      "de": "Verbandkasten (Ablaufdatum)"
+     },
+     "description": {
+      "en": "Check the expiry date of the first aid kit",
+      "de": "Ablaufdatum des Verbandkastens prüfen"
+     },
+     "icon": "mdi:medical-bag",
+     "interval_days": 1460,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "comfort",
+   "name": {
+    "en": "Comfort & electrics",
+    "de": "Komfort & Elektrik"
+   },
+   "icon": "mdi:car-electric-outline",
+   "items": [
+    {
+     "id": "cabin_filter",
+     "name": {
+      "en": "Cabin filter",
+      "de": "Innenraumfilter"
+     },
+     "description": {
+      "en": "Replace the cabin air filter",
+      "de": "Innenraumfilter ersetzen"
+     },
+     "icon": "mdi:air-filter",
+     "interval_days": 365,
+     "interval_km": 15000,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "wiper_blades",
+     "name": {
+      "en": "Wiper blades",
+      "de": "Scheibenwischer"
+     },
+     "description": {
+      "en": "Replace the wiper blades",
+      "de": "Wischerblätter ersetzen"
+     },
+     "icon": "mdi:wiper",
+     "interval_days": 365,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "ac_service",
+     "name": {
+      "en": "Air conditioning service",
+      "de": "Klimaanlagen-Service"
+     },
+     "description": {
+      "en": "Service the air conditioning and check the refrigerant",
+      "de": "Klimaanlage warten und Kältemittel prüfen"
+     },
+     "icon": "mdi:air-conditioner",
+     "interval_days": 730,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "battery_12v",
+     "name": {
+      "en": "12 V battery check",
+      "de": "12-V-Batterie prüfen"
+     },
+     "description": {
+      "en": "Test the 12 V battery",
+      "de": "12-V-Batterie testen"
+     },
+     "icon": "mdi:car-battery",
+     "interval_days": 730,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "lights_check",
+     "name": {
+      "en": "Lights check",
+      "de": "Beleuchtung prüfen"
+     },
+     "description": {
+      "en": "Check all lights and replace bulbs",
+      "de": "Beleuchtung prüfen und Leuchtmittel ersetzen"
+     },
+     "icon": "mdi:car-light-high",
+     "interval_days": 365,
+     "interval_km": null,
+     "applies_to": [
+      "petrol",
+      "diesel",
+      "hybrid",
+      "electric"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "electric",
+   "name": {
+    "en": "Electric & hybrid",
+    "de": "Elektro & Hybrid"
+   },
+   "icon": "mdi:ev-station",
+   "items": [
+    {
+     "id": "hv_battery_check",
+     "name": {
+      "en": "High-voltage battery check",
+      "de": "Hochvoltbatterie prüfen"
+     },
+     "description": {
+      "en": "Have the high-voltage battery health checked",
+      "de": "Zustand der Hochvoltbatterie prüfen lassen"
+     },
+     "icon": "mdi:battery-heart-variant",
+     "interval_days": 365,
+     "interval_km": null,
+     "applies_to": [
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "battery_coolant",
+     "name": {
+      "en": "Battery coolant",
+      "de": "Batteriekühlmittel"
+     },
+     "description": {
+      "en": "Replace the battery and power electronics coolant",
+      "de": "Kühlmittel für Batterie und Leistungselektronik wechseln"
+     },
+     "icon": "mdi:coolant-temperature",
+     "interval_days": 1460,
+     "interval_km": 120000,
+     "applies_to": [
+      "hybrid",
+      "electric"
+     ]
+    },
+    {
+     "id": "charging_cable",
+     "name": {
+      "en": "Charging cable inspection",
+      "de": "Ladekabel prüfen"
+     },
+     "description": {
+      "en": "Inspect the charging cable and plug",
+      "de": "Ladekabel und Stecker prüfen"
+     },
+     "icon": "mdi:ev-plug-type2",
+     "interval_days": 365,
+     "interval_km": null,
+     "applies_to": [
+      "hybrid",
+      "electric"
+     ]
+    }
+   ]
+  }
+ ]
+}

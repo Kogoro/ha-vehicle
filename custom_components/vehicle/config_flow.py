@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+from contextlib import suppress
 from typing import Any
 
 import voluptuous as vol
@@ -10,6 +11,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
+    ConfigSubentry,
     ConfigSubentryFlow,
     SubentryFlowResult,
 )
@@ -44,6 +46,7 @@ from .const import (
     DEFAULT_WARN_DAYS,
     DEFAULT_WARN_KM,
     DOMAIN,
+    SUBENTRY_TYPE_IMPORT,
     SUBENTRY_TYPE_SERVICE,
     FuelType,
 )
@@ -107,7 +110,10 @@ class VehicleConfigFlow(ConfigFlow, domain=DOMAIN):
         cls, config_entry: ConfigEntry
     ) -> dict[str, type[ConfigSubentryFlow]]:
         """Return supported subentry types."""
-        return {SUBENTRY_TYPE_SERVICE: ServiceItemSubentryFlow}
+        return {
+            SUBENTRY_TYPE_SERVICE: ServiceItemSubentryFlow,
+            SUBENTRY_TYPE_IMPORT: ImportSubentryFlow,
+        }
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -235,4 +241,174 @@ class ServiceItemSubentryFlow(ConfigSubentryFlow):
             step_id="reconfigure",
             data_schema=_service_schema(defaults, creating=False),
             errors=errors,
+        )
+
+
+def _days_text(days: int) -> str:
+    """Human-friendly interval: 365 -> '1 y', 182 -> '6 mo', 45 -> '45 d'."""
+    years = round(days / 365)
+    if years >= 1 and abs(days - years * 365) <= 10:
+        return f"{years} y"
+    months = round(days / 30.44)
+    if months >= 2 and abs(days - months * 30.44) <= 4:
+        return f"{months} mo"
+    return f"{days} d"
+
+
+def _interval_text(item: dict[str, Any]) -> str:
+    parts = []
+    if item.get("interval_days"):
+        parts.append(_days_text(item["interval_days"]))
+    if item.get("interval_km"):
+        parts.append(f"{item['interval_km']:,} km".replace(",", " "))
+    return " / ".join(parts)
+
+
+class ImportSubentryFlow(ConfigSubentryFlow):
+    """Import common service items from the catalog (like ha-task's task import)."""
+
+    def __init__(self) -> None:
+        """Initialize the import flow."""
+        super().__init__()
+        self._categories: list[str] = []
+        self._item_ids: list[str] = []
+        self._lang: str | None = None
+
+    async def _resolve_lang(self) -> str:
+        """Use the requesting user's frontend language, then the system language, then English."""
+        if self._lang is not None:
+            return self._lang
+        lang: str | None = None
+        with suppress(Exception):
+            from homeassistant.helpers.http import current_request
+
+            if (request := current_request.get()) is not None and (
+                user := request.get("hass_user")
+            ) is not None:
+                from homeassistant.components.frontend import storage as frontend_store
+
+                store = await frontend_store.async_user_store(self.hass, user.id)
+                lang = store.data.get("language", {}).get("language")
+        self._lang = (lang or self.hass.config.language or "en").split("-", 1)[0]
+        return self._lang
+
+    def _fuel_type(self) -> str:
+        return self._get_entry().data[CONF_FUEL_TYPE]
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Step 1: choose categories."""
+        from .catalog import get_categories
+
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if user_input.get("categories"):
+                self._categories = user_input["categories"]
+                return await self.async_step_select_items()
+            errors["categories"] = "no_categories_selected"
+
+        categories = await get_categories(self._fuel_type(), await self._resolve_lang())
+        if not categories:
+            return self.async_abort(reason="catalog_empty")
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("categories"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[{"value": c["id"], "label": c["name"]} for c in categories],
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_select_items(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Step 2: choose items."""
+        from .catalog import get_items
+
+        items = await get_items(self._categories, self._fuel_type(), await self._resolve_lang())
+        if not items:
+            return self.async_abort(reason="no_items_found")
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if user_input.get("items"):
+                self._item_ids = user_input["items"]
+                return await self.async_step_configure()
+            errors["items"] = "no_items_selected"
+
+        existing = {sub.title for sub in self._get_entry().subentries.values()}
+        options = []
+        for item in items:
+            label = item["name"]
+            if text := _interval_text(item):
+                label += f" ({text})"
+            if item["name"] in existing:
+                label += " \u2022 exists"
+            options.append({"value": item["id"], "label": label})
+        return self.async_show_form(
+            step_id="select_items",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("items"): SelectSelector(
+                        SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.LIST)
+                    )
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_configure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Step 3: when were these items last done?"""
+        if user_input is not None:
+            return await self._create(user_input)
+        return self.async_show_form(
+            step_id="configure",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_LAST_DATE,
+                        description={"suggested_value": dt_util.now().date().isoformat()},
+                    ): DateSelector()
+                }
+            ),
+        )
+
+    async def _create(self, user_input: dict[str, Any]) -> SubentryFlowResult:
+        from .catalog import get_item
+
+        entry = self._get_entry()
+        lang = await self._resolve_lang()
+        count = 0
+        for item_id in self._item_ids:
+            item = await get_item(item_id, lang)
+            if item is None:
+                continue
+            data: dict[str, Any] = {CONF_DESCRIPTION: item["description"], CONF_ICON: item["icon"]}
+            if item["interval_days"]:
+                data[CONF_INTERVAL_DAYS] = item["interval_days"]
+            if item["interval_km"]:
+                data[CONF_INTERVAL_KM] = item["interval_km"]
+            if user_input.get(CONF_LAST_DATE):
+                data[CONF_LAST_DATE] = user_input[CONF_LAST_DATE]
+            self.hass.config_entries.async_add_subentry(
+                entry,
+                ConfigSubentry(
+                    data=data,
+                    subentry_type=SUBENTRY_TYPE_SERVICE,
+                    title=item["name"],
+                    unique_id=None,
+                ),
+            )
+            count += 1
+        return self.async_abort(
+            reason="import_success", description_placeholders={"count": str(count)}
         )

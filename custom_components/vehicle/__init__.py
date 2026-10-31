@@ -51,7 +51,7 @@ from .store import VehicleStore
 _LOGGER = logging.getLogger(__name__)
 
 FRONTEND_SCRIPT_PATH = f"/{DOMAIN}/vehicle-cards.js"
-FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.4.0"
+FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.1.0"
 BLUEPRINTS_DIR = Path(__file__).parent / "blueprints"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
