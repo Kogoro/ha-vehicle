@@ -75,12 +75,36 @@ const findVehicle = (hass, config) => {
   return result;
 };
 
+const CARD_DEFAULTS = {
+  show_title: true,
+  icon: "mdi:car",
+  show_odometer: true,
+  show_stats: true,
+  stats: ["fuel_consumption", "energy_consumption", "fuel_price", "energy_price", "cost_per_km", "monthly_cost"],
+  show_services: true,
+  service_filter: "all",
+  max_services: 0,
+  show_service_actions: true,
+  show_log: true,
+  log_entries: 5,
+  show_headings: true,
+};
+
+const STAT_LABELS = {
+  fuel_consumption: "Fuel consumption",
+  energy_consumption: "Energy consumption",
+  fuel_price: "Fuel price",
+  energy_price: "Energy price",
+  cost_per_km: "Cost per km",
+  monthly_cost: "Cost this month",
+};
+
 const describeConfig = (config) => config.device || config.entity || "?";
 
 class VehicleCard extends HTMLElement {
   setConfig(config) {
     if (!config.device && !config.entity) throw new Error("Select a vehicle.");
-    this._config = { show_stats: true, show_log: true, ...config };
+    this._config = { ...CARD_DEFAULTS, ...config };
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this._render();
   }
@@ -144,6 +168,9 @@ class VehicleCard extends HTMLElement {
       if (d) return d;
       return (a.attributes.days_remaining ?? 1e9) - (b.attributes.days_remaining ?? 1e9);
     });
+    let shown = items;
+    if (cfg.service_filter === "attention") shown = items.filter((i) => i.state === "overdue" || i.state === "due_soon");
+    if (Number(cfg.max_services) > 0) shown = shown.slice(0, Number(cfg.max_services));
     const prefix = v.device?.name_by_user || v.device?.name || "";
     const itemName = (s) => {
       const n = s.attributes.friendly_name || s.entity_id;
@@ -151,15 +178,18 @@ class VehicleCard extends HTMLElement {
     };
 
     const stat = (label, value) => `<div class="stat"><span class="v">${value}</span><span class="l">${esc(label)}</span></div>`;
-    const stats = [];
-    if (v.fuel_consumption) stats.push(stat("Fuel", `${this._fmt(v.fuel_consumption.state, 1)} <small>L/100km</small>`));
-    if (v.energy_consumption) stats.push(stat("Energy", `${this._fmt(v.energy_consumption.state, 1)} <small>kWh/100km</small>`));
-    if (v.fuel_price) stats.push(stat("Fuel price", `${this._fmt(v.fuel_price.state, 3)} <small>${esc(currency)}/L</small>`));
-    if (v.energy_price) stats.push(stat("Energy price", `${this._fmt(v.energy_price.state, 3)} <small>${esc(currency)}/kWh</small>`));
-    if (v.cost_per_km) stats.push(stat("Cost/km", `${this._fmt(v.cost_per_km.state, 3)} <small>${esc(currency)}</small>`));
-    if (v.monthly_cost) stats.push(stat("This month", `${this._fmt(v.monthly_cost.state, 2)} <small>${esc(currency)}</small>`));
+    const statDefs = {
+      fuel_consumption: () => stat("Fuel", `${this._fmt(v.fuel_consumption.state, 1)} <small>L/100km</small>`),
+      energy_consumption: () => stat("Energy", `${this._fmt(v.energy_consumption.state, 1)} <small>kWh/100km</small>`),
+      fuel_price: () => stat("Fuel price", `${this._fmt(v.fuel_price.state, 3)} <small>${esc(currency)}/L</small>`),
+      energy_price: () => stat("Energy price", `${this._fmt(v.energy_price.state, 3)} <small>${esc(currency)}/kWh</small>`),
+      cost_per_km: () => stat("Cost/km", `${this._fmt(v.cost_per_km.state, 3)} <small>${esc(currency)}</small>`),
+      monthly_cost: () => stat("This month", `${this._fmt(v.monthly_cost.state, 2)} <small>${esc(currency)}</small>`),
+    };
+    const wanted = Array.isArray(cfg.stats) ? cfg.stats : CARD_DEFAULTS.stats;
+    const stats = Object.keys(statDefs).filter((key) => wanted.includes(key) && v[key]).map((key) => statDefs[key]());
 
-    const log = (odo.attributes.recent_log || []).slice(0, 5);
+    const log = (odo.attributes.recent_log || []).slice(0, Math.max(1, Number(cfg.log_entries) || CARD_DEFAULTS.log_entries));
     const logRows = log
       .map((e) => {
         const unit = e.kind === "charge" ? "kWh" : "L";
@@ -171,32 +201,44 @@ class VehicleCard extends HTMLElement {
       })
       .join("");
 
-    this.shadowRoot.innerHTML = `
-      <ha-card>
-        <div class="header">
-          <div class="title"><ha-icon icon="mdi:car"></ha-icon>${esc(title)}</div>
-          <div class="odo">${this._fmt(odo.state)} <small>km</small></div>
-        </div>
-        ${cfg.show_stats && stats.length ? `<div class="stats">${stats.join("")}</div>` : ""}
-        <div class="section">Service</div>
-        ${
-          items.length
-            ? items
+    const heading = (text) => (cfg.show_headings ? `<div class="section">${text}</div>` : "");
+    const header =
+      cfg.show_title || cfg.show_odometer
+        ? `<div class="header">
+          ${cfg.show_title ? `<div class="title">${cfg.icon ? `<ha-icon icon="${esc(cfg.icon)}"></ha-icon>` : ""}${esc(title)}</div>` : ""}
+          ${cfg.show_odometer ? `<div class="odo">${this._fmt(odo.state)} <small>km</small></div>` : ""}
+        </div>`
+        : "";
+    const actions = (s) =>
+      cfg.show_service_actions
+        ? `<ha-icon-button class="invoice" data-entity="${esc(s.entity_id)}" data-name="${esc(itemName(s))}" title="Done, with invoice"><ha-icon icon="mdi:file-document-plus-outline"></ha-icon></ha-icon-button>
+              <ha-icon-button class="done" data-entity="${esc(s.entity_id)}" title="Mark as done"><ha-icon icon="mdi:check"></ha-icon></ha-icon-button>`
+        : "";
+    const servicesHtml = !cfg.show_services
+      ? ""
+      : `${heading("Service")}${
+          shown.length
+            ? shown
                 .map(
                   (s) => `<div class="item">
               <span class="dot" style="background:${STATUS_COLOR[s.state] || STATUS_COLOR.unknown}"></span>
               <div class="grow"><div>${esc(itemName(s))}</div>
               <div class="muted">${esc(this._remaining(s.attributes) || STATUS_LABEL[s.state] || s.state)}</div></div>
               ${s.attributes.history?.[0]?.receipt ? `<ha-icon-button class="rcpt" data-receipt="${esc(s.attributes.history[0].receipt)}" title="Show last invoice"><ha-icon icon="mdi:paperclip"></ha-icon></ha-icon-button>` : ""}
-              <ha-icon-button class="invoice" data-entity="${esc(s.entity_id)}" data-name="${esc(itemName(s))}" title="Done, with invoice"><ha-icon icon="mdi:file-document-plus-outline"></ha-icon></ha-icon-button>
-              <ha-icon-button class="done" data-entity="${esc(s.entity_id)}" title="Mark as done"><ha-icon icon="mdi:check"></ha-icon></ha-icon-button>
+              ${actions(s)}
             </div>`
                 )
                 .join("")
-            : `<div class="empty">No service items yet. Add them on the integration page.</div>`
-        }
+            : `<div class="empty">${items.length ? "Nothing due." : "No service items yet. Add them on the integration page."}</div>`
+        }`;
+
+    this.shadowRoot.innerHTML = `
+      <ha-card>
+        ${header}
+        ${cfg.show_stats && stats.length ? `<div class="stats">${stats.join("")}</div>` : ""}
+        ${servicesHtml}
         ${this._msg ? `<div class="msg">${esc(this._msg)}</div>` : ""}
-        ${cfg.show_log && logRows ? `<div class="section">Recent refuels &amp; charges</div>${logRows}` : ""}
+        ${cfg.show_log && logRows ? `${heading("Recent refuels &amp; charges")}${logRows}` : ""}
       </ha-card>${this._style()}`;
 
     this.shadowRoot.querySelectorAll(".rcpt").forEach((btn) =>
@@ -275,7 +317,7 @@ class VehicleCard extends HTMLElement {
       ha-card { padding-bottom: 8px; }
       .header { display:flex; justify-content:space-between; align-items:baseline; padding:16px 16px 4px; }
       .title { display:flex; align-items:center; gap:8px; font-size:1.2em; font-weight:500; }
-      .odo { font-size:1.4em; font-weight:500; }
+      .odo { font-size:1.4em; font-weight:500; margin-left:auto; }
       small { font-size:.6em; color:var(--secondary-text-color); font-weight:400; }
       .stats { display:flex; flex-wrap:wrap; gap:8px 20px; padding:4px 16px 8px; }
       .stat { display:flex; flex-direction:column; }
@@ -312,20 +354,69 @@ class VehicleCardEditor extends HTMLElement {
   }
 
   _defaults() {
-    return { show_stats: true, show_log: true };
+    return CARD_DEFAULTS;
   }
 
   _schema() {
+    const bool = { boolean: {} };
+    const num = (min, max) => ({ number: { min, max, step: 1, mode: "box" } });
     return [
       { name: "device", required: true, selector: { device: { integration: "vehicle" } } },
-      { name: "title", selector: { text: {} } },
-      { name: "show_stats", selector: { boolean: {} } },
-      { name: "show_log", selector: { boolean: {} } },
+      {
+        type: "expandable", name: "", title: "Header", flatten: true, schema: [
+          { name: "show_title", selector: bool },
+          { name: "title", selector: { text: {} } },
+          { name: "icon", selector: { icon: {} } },
+          { name: "show_odometer", selector: bool },
+        ],
+      },
+      {
+        type: "expandable", name: "", title: "Statistics", flatten: true, schema: [
+          { name: "show_stats", selector: bool },
+          {
+            name: "stats",
+            selector: { select: { multiple: true, mode: "list", options: Object.entries(STAT_LABELS).map(([value, label]) => ({ value, label })) } },
+          },
+        ],
+      },
+      {
+        type: "expandable", name: "", title: "Service items", flatten: true, schema: [
+          { name: "show_services", selector: bool },
+          {
+            name: "service_filter",
+            selector: { select: { mode: "dropdown", options: [{ value: "all", label: "All items" }, { value: "attention", label: "Only overdue or due soon" }] } },
+          },
+          { name: "max_services", selector: num(0, 50) },
+          { name: "show_service_actions", selector: bool },
+        ],
+      },
+      {
+        type: "expandable", name: "", title: "Refuels and charges", flatten: true, schema: [
+          { name: "show_log", selector: bool },
+          { name: "log_entries", selector: num(1, 10) },
+        ],
+      },
+      { name: "show_headings", selector: bool },
     ];
   }
 
   _labels() {
-    return { device: "Vehicle", title: "Title", show_stats: "Show statistics", show_log: "Show recent refuels" };
+    return {
+      device: "Vehicle",
+      title: "Title (empty = vehicle name)",
+      show_title: "Show title",
+      icon: "Icon",
+      show_odometer: "Show mileage",
+      show_stats: "Show statistics",
+      stats: "Statistics to show",
+      show_services: "Show service items",
+      service_filter: "Which service items",
+      max_services: "Maximum number of items (0 = all)",
+      show_service_actions: "Show the done / invoice buttons",
+      show_log: "Show refuels and charges",
+      log_entries: "Number of entries",
+      show_headings: "Show section headings",
+    };
   }
 
   _render() {
@@ -333,9 +424,13 @@ class VehicleCardEditor extends HTMLElement {
     if (!this._form) {
       this._form = document.createElement("ha-form");
       this._form.addEventListener("value-changed", (ev) => {
-        this.dispatchEvent(
-          new CustomEvent("config-changed", { detail: { config: ev.detail.value }, bubbles: true, composed: true })
-        );
+        // only store what differs from the defaults, so the card YAML stays short
+        const config = { ...ev.detail.value };
+        for (const [key, value] of Object.entries(this._defaults())) {
+          if (JSON.stringify(config[key]) === JSON.stringify(value)) delete config[key];
+        }
+        for (const key of Object.keys(config)) if (config[key] === "" || config[key] === undefined) delete config[key];
+        this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
       });
       this.appendChild(this._form);
     }
@@ -384,6 +479,7 @@ class VehicleLogCard extends HTMLElement {
       return;
     }
     this._built = true;
+    const cfg = { show_title: true, icon: "mdi:gas-station", ...this._config };
     const type = v.odometer.attributes.fuel_type;
     this._kind = type === "electric" ? "charge" : "fuel";
     const title = this._config.title || `Add ${type === "electric" ? "charge" : type === "hybrid" ? "fuel or charge" : "refuel"}`;
@@ -391,7 +487,7 @@ class VehicleLogCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <ha-card>
-        <div class="header"><div class="title"><ha-icon icon="mdi:gas-station"></ha-icon>${esc(title)}</div></div>
+        ${cfg.show_title ? `<div class="header"><div class="title">${cfg.icon ? `<ha-icon icon="${esc(cfg.icon)}"></ha-icon>` : ""}${esc(title)}</div></div>` : ""}
         ${type === "hybrid" ? `<div class="tabs"><button data-kind="fuel" class="active">Fuel</button><button data-kind="charge">Charge</button></div>` : ""}
         <form>
           <label>Date<input name="date" type="date" value="${today}" required></label>
@@ -556,18 +652,20 @@ class VehicleLogCard extends HTMLElement {
 
 class VehicleLogCardEditor extends VehicleCardEditor {
   _defaults() {
-    return {};
+    return { show_title: true, icon: "mdi:gas-station" };
   }
 
   _schema() {
     return [
       { name: "device", required: true, selector: { device: { integration: "vehicle" } } },
+      { name: "show_title", selector: { boolean: {} } },
       { name: "title", selector: { text: {} } },
+      { name: "icon", selector: { icon: {} } },
     ];
   }
 
   _labels() {
-    return { device: "Vehicle", title: "Title" };
+    return { device: "Vehicle", show_title: "Show title", title: "Title (empty = automatic)", icon: "Icon" };
   }
 }
 

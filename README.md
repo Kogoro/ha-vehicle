@@ -115,9 +115,32 @@ In the visual editor you pick the **vehicle** (there is exactly one device per v
 | Option | Default | Description |
 |--------|---------|-------------|
 | `device` / `entity` | — | The vehicle: its device id, or any of its entities (YAML only) |
+| `show_title` | `true` | Show the title |
 | `title` | vehicle name | Card title |
-| `show_stats` | `true` | Consumption and cost row |
-| `show_log` | `true` | Recent refuels/charges |
+| `icon` | `mdi:car` | Title icon (empty for none) |
+| `show_odometer` | `true` | Show the mileage |
+| `show_stats` | `true` | Show the statistics row |
+| `stats` | all | Which statistics: `fuel_consumption`, `energy_consumption`, `fuel_price`, `energy_price`, `cost_per_km`, `monthly_cost` |
+| `show_services` | `true` | Show the service items |
+| `service_filter` | `all` | `all`, or `attention` for only overdue / due-soon items |
+| `max_services` | `0` | Limit the number of service items (0 = all) |
+| `show_service_actions` | `true` | Show the "done" and "done with invoice" buttons |
+| `show_log` | `true` | Show recent refuels and charges |
+| `log_entries` | `5` | Number of log entries (1–10) |
+| `show_headings` | `true` | Show the "Service" and "Recent refuels" headings |
+
+Everything above is also available in the visual editor, grouped into Header, Statistics, Service items and Refuels and charges. Only options you change are saved to the card.
+
+```yaml
+# example: compact "what needs attention" card without a title
+type: custom:vehicle-card
+entity: sensor.golf_odometer
+show_title: false
+show_stats: false
+show_log: false
+service_filter: attention
+show_service_actions: false
+```
 
 ### `vehicle-log-card` — add fuel / charge
 
@@ -131,7 +154,9 @@ entity: sensor.golf_odometer
 | Option | Default | Description |
 |--------|---------|-------------|
 | `device` / `entity` | — | The vehicle: its device id, or any of its entities (YAML only) |
+| `show_title` | `true` | Show the title |
 | `title` | auto | Card title |
+| `icon` | `mdi:gas-station` | Title icon (empty for none) |
 
 ### Receipts and invoices
 
