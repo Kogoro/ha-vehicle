@@ -35,15 +35,22 @@ def call(method, path, body=None, token=None, form=False):
         with urllib.request.urlopen(req, timeout=30) as resp:
             raw = resp.read()
     except urllib.error.HTTPError as err:
+        if path == "/api/onboarding":
+            raise
         raise SystemExit(f"{method} {path} -> {err.code}: {err.read().decode()[:500]}") from None
     return json.loads(raw) if raw else None
 
 
 def wait_for_ha():
+    """Return the onboarding steps; an already onboarded instance answers 404."""
     for _ in range(120):
         try:
-            return call("GET", "/api/onboarding")
-        except (SystemExit, urllib.error.URLError, ConnectionError, OSError):
+            return [{"step": s["step"], "done": s["done"]} for s in call("GET", "/api/onboarding")]
+        except urllib.error.HTTPError as err:
+            if err.code == 404:
+                return [{"step": "user", "done": True}]
+            time.sleep(2)
+        except (urllib.error.URLError, ConnectionError, OSError):
             time.sleep(2)
     raise SystemExit(f"Home Assistant not reachable at {BASE}")
 
@@ -90,6 +97,12 @@ def main():
 
     def ago(days):
         return (today - datetime.timedelta(days=days)).isoformat()
+
+    if not api("GET", "/api/config/config_entries/entry?domain=fake_ai_task"):
+        flow = api("POST", "/api/config/config_entries/flow", {"handler": "fake_ai_task"})
+        if flow["type"] != "create_entry":
+            api("POST", f"/api/config/config_entries/flow/{flow['flow_id']}", {})
+        print("Fake AI task provider created (canned values, dev only)")
 
     vehicles = {
         "Golf": {

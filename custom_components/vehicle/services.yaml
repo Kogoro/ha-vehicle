@@ -55,6 +55,9 @@ add_fuel:
           step: 0.1
           mode: box
           unit_of_measurement: km
+    receipt:
+      selector:
+        text:
     date:
       selector:
         date:
@@ -94,6 +97,9 @@ add_charge:
           step: 0.1
           mode: box
           unit_of_measurement: km
+    receipt:
+      selector:
+        text:
     date:
       selector:
         date:
@@ -113,6 +119,71 @@ complete_service:
           step: 0.1
           mode: box
           unit_of_measurement: km
+    cost:
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.01
+          mode: box
+    receipt:
+      selector:
+        text:
     date:
       selector:
         date:
+
+upload_receipt:
+  fields:
+    file:
+      required: true
+      selector:
+        file:
+          accept: "image/*,application/pdf"
+
+scan_receipt:
+  fields:
+    receipt:
+      required: true
+      selector:
+        text:
+    kind:
+      required: true
+      selector:
+        select:
+          translation_key: scan_kind
+          options:
+            - fuel
+            - charge
+            - service
+    ai_task_entity_id:
+      selector:
+        entity:
+          domain: ai_task
+
+attach_receipt:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: vehicle
+    receipt:
+      required: true
+      selector:
+        text:
+    log_entry_id:
+      selector:
+        text:
+
+delete_log_entry:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: vehicle
+    log_entry_id:
+      required: true
+      selector:
+        text:

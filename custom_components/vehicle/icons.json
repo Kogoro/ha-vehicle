@@ -61,6 +61,18 @@
     },
     "complete_service": {
       "service": "mdi:check-circle"
+    },
+    "upload_receipt": {
+      "service": "mdi:receipt-text-plus"
+    },
+    "scan_receipt": {
+      "service": "mdi:text-recognition"
+    },
+    "attach_receipt": {
+      "service": "mdi:paperclip"
+    },
+    "delete_log_entry": {
+      "service": "mdi:delete"
     }
   }
 }

@@ -22,3 +22,6 @@ ha-config/
 dev/config/*
 !dev/config/configuration.yaml
 !dev/config/dashboards/
+!dev/config/custom_components/
+!dev/config/custom_components/fake_ai_task/
+!dev/config/custom_components/fake_ai_task/**

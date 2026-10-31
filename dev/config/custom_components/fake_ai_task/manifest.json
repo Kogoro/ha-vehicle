@@ -1,0 +1,11 @@
+{
+  "domain": "fake_ai_task",
+  "name": "Fake AI Task (dev only)",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["ai_task"],
+  "documentation": "https://github.com/Kogoro/ha-vehicle",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "version": "0.0.1"
+}

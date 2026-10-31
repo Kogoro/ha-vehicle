@@ -205,6 +205,7 @@ class ServiceStatusSensor(ServiceItemEntity, SensorEntity):
             "next_due_odometer": info.next_due_odometer,
             "days_remaining": info.days_remaining,
             "km_remaining": info.km_remaining,
+            "history": item.history,
         }
 
 

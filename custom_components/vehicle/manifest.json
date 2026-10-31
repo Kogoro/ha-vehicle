@@ -1,12 +1,22 @@
 {
   "domain": "vehicle",
   "name": "Vehicle",
-  "codeowners": ["@Kogoro"],
+  "after_dependencies": [
+    "ai_task"
+  ],
+  "codeowners": [
+    "@Kogoro"
+  ],
   "config_flow": true,
-  "dependencies": ["frontend", "http"],
+  "dependencies": [
+    "file_upload",
+    "frontend",
+    "http",
+    "media_source"
+  ],
   "documentation": "https://github.com/Kogoro/ha-vehicle",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Kogoro/ha-vehicle/issues",
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

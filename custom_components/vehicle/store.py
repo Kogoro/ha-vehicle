@@ -70,10 +70,33 @@ class VehicleStore:
         return entry
 
     @callback
-    def remove_vehicle(self, entry_id: str) -> None:
-        """Delete all data of a vehicle."""
-        self._data["vehicles"].pop(entry_id, None)
+    def delete_log(self, entry_id: str, log_id: str) -> dict[str, Any] | None:
+        """Delete a log entry and return it, or None if it does not exist."""
+        log = self.vehicle(entry_id)["log"]
+        for entry in log:
+            if entry["id"] == log_id:
+                log.remove(entry)
+                self._save()
+                return entry
+        return None
+
+    @callback
+    def attach_to_log(self, entry_id: str, log_id: str, receipt: str) -> str | None:
+        """Attach a receipt to a log entry. Returns the replaced receipt, if any."""
+        for entry in self.vehicle(entry_id)["log"]:
+            if entry["id"] == log_id:
+                old = entry.get("receipt")
+                entry["receipt"] = receipt
+                self._save()
+                return old or ""
+        return None
+
+    @callback
+    def remove_vehicle(self, entry_id: str) -> list[str]:
+        """Delete all data of a vehicle and return its receipt ids."""
+        record = self._data["vehicles"].pop(entry_id, None)
         self._save()
+        return [e["receipt"] for e in (record or {}).get("log", []) if e.get("receipt")]
 
     # Service items ------------------------------------------------------
 
@@ -94,22 +117,54 @@ class VehicleStore:
 
     @callback
     def record_service(
-        self, subentry_id: str, date: str, odometer: float | None
+        self,
+        subentry_id: str,
+        date: str,
+        odometer: float | None,
+        cost: float | None = None,
+        receipt: str | None = None,
     ) -> None:
         """Record a completed service."""
-        self.service(subentry_id)["history"].append(
-            {"date": date, "odometer": odometer}
-        )
+        record: dict[str, Any] = {"date": date, "odometer": odometer}
+        if cost is not None:
+            record["cost"] = cost
+        if receipt:
+            record["receipt"] = receipt
+        self.service(subentry_id)["history"].append(record)
         self._save()
 
     @callback
-    def prune_services(self, known: set[str]) -> None:
-        """Delete history of service items that no longer exist."""
+    def attach_to_service(self, subentry_id: str, receipt: str) -> str | None:
+        """Attach a receipt to the latest completion. Returns the replaced one."""
+        history = self.service(subentry_id)["history"]
+        if not history:
+            return None
+        old = history[-1].get("receipt")
+        history[-1]["receipt"] = receipt
+        self._save()
+        return old or ""
+
+    @callback
+    def referenced_receipts(self) -> set[str]:
+        """Return all receipt ids currently attached to something."""
+        found: set[str] = set()
+        for vehicle in self._data["vehicles"].values():
+            found.update(e["receipt"] for e in vehicle["log"] if e.get("receipt"))
+        for service in self._data["service"].values():
+            found.update(h["receipt"] for h in service["history"] if h.get("receipt"))
+        return found
+
+    @callback
+    def prune_services(self, known: set[str]) -> list[str]:
+        """Delete history of service items that no longer exist; return their receipts."""
+        removed: list[str] = []
         for subentry_id in set(self._data["service"]) - known:
-            self.remove_service(subentry_id)
+            removed += self.remove_service(subentry_id)
+        return removed
 
     @callback
-    def remove_service(self, subentry_id: str) -> None:
-        """Delete history of a service item."""
-        self._data["service"].pop(subentry_id, None)
+    def remove_service(self, subentry_id: str) -> list[str]:
+        """Delete history of a service item and return its receipt ids."""
+        record = self._data["service"].pop(subentry_id, None)
         self._save()
+        return [h["receipt"] for h in (record or {}).get("history", []) if h.get("receipt")]

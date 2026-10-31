@@ -11,6 +11,51 @@ const STATUS_COLOR = {
 };
 const STATUS_LABEL = { overdue: "Overdue", due_soon: "Due soon", ok: "OK", unknown: "Not tracked yet" };
 
+const downscale = async (file, max = 1600) => {
+  if (!file.type.startsWith("image/")) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    return blob ? new File([blob], "receipt.jpg", { type: "image/jpeg" }) : file;
+  } catch (_) {
+    return file; // e.g. formats the browser cannot decode: send unchanged
+  }
+};
+
+const callResponse = async (hass, service, data) =>
+  (await hass.callWS({ type: "call_service", domain: "vehicle", service, service_data: data, return_response: true })).response;
+
+const uploadReceipt = async (hass, file) => {
+  const body = new FormData();
+  body.append("file", await downscale(file));
+  const resp = await hass.fetchWithAuth("/api/file_upload", { method: "POST", body });
+  if (!resp.ok) throw new Error(`Upload failed (${resp.status})`);
+  const { file_id } = await resp.json();
+  return (await callResponse(hass, "upload_receipt", { file: file_id })).receipt;
+};
+
+const aiAvailable = (hass) =>
+  !!hass.services?.ai_task?.generate_data && Object.keys(hass.states).some((id) => id.startsWith("ai_task."));
+
+const scanReceipt = async (hass, receipt, kind) => (await callResponse(hass, "scan_receipt", { receipt, kind })).values || {};
+
+const openReceipt = async (hass, receipt) => {
+  const win = window.open("", "_blank"); // open synchronously to avoid popup blockers
+  try {
+    const { path } = await hass.callWS({ type: "auth/sign_path", path: `/api/vehicle/receipt/${receipt}`, expires: 120 });
+    if (win) win.location.href = path;
+    else window.open(path, "_blank");
+  } catch (err) {
+    if (win) win.close();
+    window.alert(err?.message || "Could not open the receipt");
+  }
+};
+
 const findVehicle = (hass, entityId) => {
   const reg = hass.entities?.[entityId];
   const result = { items: [] };
@@ -116,7 +161,7 @@ class VehicleCard extends HTMLElement {
         const price = e.price != null ? `${this._fmt(e.price, 3)}/${e.kind === "charge" ? "kWh" : "L"}` : "";
         const km = e.odometer != null ? `${this._fmt(e.odometer)} km` : "";
         return `<div class="log"><ha-icon icon="${e.kind === "charge" ? "mdi:ev-station" : "mdi:gas-station"}"></ha-icon>
-          <span class="grow">${esc(e.date)} · ${this._fmt(e.amount, 1)} ${unit}</span><span class="muted">${[price, cost, km].filter(Boolean).join(" · ")}</span></div>`;
+          <span class="grow">${esc(e.date)} · ${this._fmt(e.amount, 1)} ${unit}</span><span class="muted">${[price, cost, km].filter(Boolean).join(" · ")}</span>${e.receipt ? `<ha-icon-button class="rcpt" data-receipt="${esc(e.receipt)}" title="Show receipt"><ha-icon icon="mdi:paperclip"></ha-icon></ha-icon-button>` : ""}</div>`;
       })
       .join("");
 
@@ -136,15 +181,27 @@ class VehicleCard extends HTMLElement {
               <span class="dot" style="background:${STATUS_COLOR[s.state] || STATUS_COLOR.unknown}"></span>
               <div class="grow"><div>${esc(itemName(s))}</div>
               <div class="muted">${esc(this._remaining(s.attributes) || STATUS_LABEL[s.state] || s.state)}</div></div>
+              ${s.attributes.history?.[0]?.receipt ? `<ha-icon-button class="rcpt" data-receipt="${esc(s.attributes.history[0].receipt)}" title="Show last invoice"><ha-icon icon="mdi:paperclip"></ha-icon></ha-icon-button>` : ""}
+              <ha-icon-button class="invoice" data-entity="${esc(s.entity_id)}" data-name="${esc(itemName(s))}" title="Done, with invoice"><ha-icon icon="mdi:file-document-plus-outline"></ha-icon></ha-icon-button>
               <ha-icon-button class="done" data-entity="${esc(s.entity_id)}" title="Mark as done"><ha-icon icon="mdi:check"></ha-icon></ha-icon-button>
             </div>`
                 )
                 .join("")
             : `<div class="empty">No service items yet. Add them on the integration page.</div>`
         }
+        ${this._msg ? `<div class="msg">${esc(this._msg)}</div>` : ""}
         ${cfg.show_log && logRows ? `<div class="section">Recent refuels &amp; charges</div>${logRows}` : ""}
       </ha-card>${this._style()}`;
 
+    this.shadowRoot.querySelectorAll(".rcpt").forEach((btn) =>
+      btn.addEventListener("click", () => openReceipt(hass, btn.dataset.receipt))
+    );
+    this.shadowRoot.querySelectorAll(".invoice").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        this._pending = { entity: btn.dataset.entity, name: btn.dataset.name };
+        this._fileInput().click();
+      })
+    );
     this.shadowRoot.querySelectorAll(".done").forEach((btn) =>
       btn.addEventListener("click", () => {
         const id = btn.dataset.entity;
@@ -155,8 +212,60 @@ class VehicleCard extends HTMLElement {
     );
   }
 
+  _fileInput() {
+    // lives outside the shadow DOM that is re-rendered on every state change
+    if (!this._file) {
+      this._file = document.createElement("input");
+      this._file.type = "file";
+      this._file.accept = "image/*,application/pdf";
+      this._file.hidden = true;
+      this._file.addEventListener("change", () => {
+        const file = this._file.files[0];
+        this._file.value = "";
+        if (file && this._pending) this._completeWithInvoice(file, this._pending);
+      });
+      this.appendChild(this._file);
+    }
+    return this._file;
+  }
+
+  _say(msg) {
+    this._msg = msg;
+    this._render();
+  }
+
+  async _completeWithInvoice(file, { entity, name }) {
+    const hass = this._hass;
+    try {
+      this._say("Uploading invoice…");
+      const receipt = await uploadReceipt(hass, file);
+      let found = {};
+      if (aiAvailable(hass)) {
+        this._say("Reading invoice…");
+        found = await scanReceipt(hass, receipt, "service").catch(() => ({}));
+      }
+      this._say("");
+      const currency = hass.config?.currency || "";
+      const text = [
+        `Mark "${name}" as done`,
+        found.date ? `on ${found.date}` : "today",
+        found.odometer ? `at ${found.odometer} km` : "",
+        found.cost ? `(cost ${found.cost} ${currency})` : "",
+        "and attach the invoice?",
+      ].filter(Boolean).join(" ");
+      if (!window.confirm(text)) return;
+      const data = { entity_id: entity, receipt };
+      for (const key of ["date", "odometer", "cost"]) if (found[key]) data[key] = found[key];
+      await hass.callService("vehicle", "complete_service", data);
+    } catch (err) {
+      this._say("");
+      window.alert(err?.message || "Could not attach the invoice");
+    }
+  }
+
   _style() {
     return `<style>
+      .msg { padding:4px 16px; color:var(--secondary-text-color); }
       ha-card { padding-bottom: 8px; }
       .header { display:flex; justify-content:space-between; align-items:baseline; padding:16px 16px 4px; }
       .title { display:flex; align-items:center; gap:8px; font-size:1.2em; font-weight:500; }
@@ -168,7 +277,8 @@ class VehicleCard extends HTMLElement {
       .stat .l, .muted { font-size:.85em; color:var(--secondary-text-color); }
       .section { padding:12px 16px 4px; font-size:.8em; text-transform:uppercase; letter-spacing:.06em; color:var(--secondary-text-color); }
       .item, .log { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; padding:4px 16px; min-height:40px; }
-      .grow { flex:1; min-width:120px; }
+      .grow { flex:1; min-width:80px; }
+      ha-icon-button { flex:none; }
       .dot { width:10px; height:10px; border-radius:50%; flex:none; }
       .empty { padding:16px; color:var(--secondary-text-color); }
       .log ha-icon { --mdc-icon-size:18px; color:var(--secondary-text-color); }
@@ -271,6 +381,11 @@ class VehicleLogCard extends HTMLElement {
           <label><span class="amount-label"></span><input name="amount" type="number" step="0.01" min="0" inputmode="decimal" required></label>
           <label><span class="price-label"></span><input name="price" type="number" step="0.001" min="0" inputmode="decimal" required></label>
           <label>Odometer (km, optional)<input name="odometer" type="number" step="0.1" min="0" inputmode="decimal"></label>
+          <div class="receipt">
+            <button type="button" class="pick"><ha-icon icon="mdi:paperclip"></ha-icon> Receipt</button>
+            <span class="rname muted"></span>
+            <button type="button" class="scan" hidden><ha-icon icon="mdi:text-recognition"></ha-icon> Scan with AI</button>
+          </div>
           <div class="total muted"></div>
           <div class="actions"><span class="status"></span><button type="submit" class="primary">Add</button></div>
         </form>
@@ -289,11 +404,65 @@ class VehicleLogCard extends HTMLElement {
       })
     );
     [this._amount, this._price].forEach((i) => i.addEventListener("input", () => this._hints()));
+    this._picker = document.createElement("input");
+    this._picker.type = "file";
+    this._picker.accept = "image/*,application/pdf";
+    this._picker.hidden = true;
+    this._picker.addEventListener("change", () => this._pick());
+    root.appendChild(this._picker);
+    root.querySelector(".pick").addEventListener("click", () => this._picker.click());
+    root.querySelector(".scan").addEventListener("click", () => this._scan());
     root.querySelector("form").addEventListener("submit", (ev) => {
       ev.preventDefault();
       this._submit();
     });
     this._hints();
+  }
+
+  _status(text, cls = "") {
+    const status = this.shadowRoot.querySelector(".status");
+    status.className = `status ${cls}`;
+    status.textContent = text;
+  }
+
+  async _pick() {
+    const file = this._picker.files[0];
+    this._picker.value = "";
+    if (!file) return;
+    const root = this.shadowRoot;
+    this._receipt = null;
+    root.querySelector(".rname").textContent = "Uploading…";
+    root.querySelector(".scan").hidden = true;
+    try {
+      this._receipt = await uploadReceipt(this._hass, file);
+      root.querySelector(".rname").textContent = file.name;
+      root.querySelector(".scan").hidden = !aiAvailable(this._hass);
+    } catch (err) {
+      root.querySelector(".rname").textContent = "";
+      this._status(err?.message || "Upload failed", "err");
+    }
+  }
+
+  async _scan() {
+    if (!this._receipt) return;
+    this._status("Reading receipt…");
+    try {
+      const v = await scanReceipt(this._hass, this._receipt, this._kind);
+      const charge = this._kind === "charge";
+      const root = this.shadowRoot;
+      let amount = v[charge ? "kwh" : "liters"];
+      let price = v[charge ? "price_per_kwh" : "price_per_liter"];
+      if (!price && amount && v.total_cost) price = Math.round((v.total_cost / amount) * 1000) / 1000;
+      if (!amount && price && v.total_cost) amount = Math.round((v.total_cost / price) * 100) / 100;
+      if (v.date) root.querySelector("[name=date]").value = v.date;
+      if (amount) this._amount.value = amount;
+      if (price) this._price.value = price;
+      if (v.odometer) this._odo.value = v.odometer;
+      this._hints();
+      this._status(Object.keys(v).length ? "Please check the values" : "Nothing readable found", "");
+    } catch (err) {
+      this._status(err?.message || "Scan failed", "err");
+    }
   }
 
   _hints() {
@@ -315,7 +484,6 @@ class VehicleLogCard extends HTMLElement {
 
   async _submit() {
     const root = this.shadowRoot;
-    const status = root.querySelector(".status");
     const charge = this._kind === "charge";
     const data = {
       entity_id: this._config.entity,
@@ -324,19 +492,21 @@ class VehicleLogCard extends HTMLElement {
       [charge ? "price_per_kwh" : "price_per_liter"]: Number(this._price.value),
     };
     if (this._odo.value !== "") data.odometer = Number(this._odo.value);
-    status.className = "status";
-    status.textContent = "Saving…";
+    if (this._receipt) data.receipt = this._receipt;
+    this._status("Saving…");
     try {
       await this._hass.callService("vehicle", charge ? "add_charge" : "add_fuel", data);
-      status.className = "status ok";
-      status.textContent = "Saved";
+      this._status("Saved", "ok");
       this._amount.value = "";
       this._odo.value = "";
+      this._receipt = null;
+      root.querySelector(".rname").textContent = "";
+      root.querySelector(".scan").hidden = true;
       this._hints();
+      const status = root.querySelector(".status");
       setTimeout(() => { if (status.textContent === "Saved") status.textContent = ""; }, 4000);
     } catch (err) {
-      status.className = "status err";
-      status.textContent = err?.message || "Failed";
+      this._status(err?.message || "Failed", "err");
     }
   }
 
@@ -351,7 +521,10 @@ class VehicleLogCard extends HTMLElement {
       input { font:inherit; font-size:1rem; padding:8px; border-radius:6px; color:var(--primary-text-color);
         background:var(--secondary-background-color, #f5f5f5); border:1px solid var(--divider-color, #ccc); min-width:0; width:100%; box-sizing:border-box; }
       input:focus { outline:2px solid var(--primary-color); outline-offset:-1px; }
-      .total, .actions { grid-column:1 / -1; }
+      .total, .actions, .receipt { grid-column:1 / -1; }
+      .receipt { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+      .receipt ha-icon { --mdc-icon-size:18px; }
+      .rname { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .actions { display:flex; justify-content:space-between; align-items:center; gap:12px; }
       button { font:inherit; cursor:pointer; border-radius:6px; border:1px solid var(--divider-color, #ccc);
         background:transparent; color:var(--primary-text-color); padding:8px 16px; }

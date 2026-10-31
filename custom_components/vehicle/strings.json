@@ -83,6 +83,13 @@
         "hybrid": "Hybrid (fuel + electric)",
         "electric": "Electric"
       }
+    },
+    "scan_kind": {
+      "options": {
+        "fuel": "Fuel receipt",
+        "charge": "Charging receipt",
+        "service": "Service invoice"
+      }
     }
   },
   "entity": {
@@ -147,6 +154,30 @@
     },
     "price_required": {
       "message": "Provide a price per unit or a total cost."
+    },
+    "receipt_not_found": {
+      "message": "Receipt {receipt} does not exist."
+    },
+    "receipt_too_large": {
+      "message": "The file is larger than 15 MB."
+    },
+    "receipt_unsupported": {
+      "message": "Only JPEG, PNG, WebP and PDF files are supported."
+    },
+    "receipt_upload_missing": {
+      "message": "The uploaded file was not found. Upload it again."
+    },
+    "ai_task_unavailable": {
+      "message": "No AI task is available. Set up an AI provider with AI task support in Home Assistant."
+    },
+    "scan_failed": {
+      "message": "The AI task failed: {error}"
+    },
+    "attach_target_missing": {
+      "message": "Provide a log entry id, or use an entity of a service item."
+    },
+    "attach_target_not_found": {
+      "message": "The log entry or service completion does not exist."
     }
   },
   "services": {
@@ -195,6 +226,10 @@
         "date": {
           "name": "Date",
           "description": "Defaults to today."
+        },
+        "receipt": {
+          "name": "Receipt",
+          "description": "Receipt id returned by upload_receipt."
         }
       }
     },
@@ -225,6 +260,10 @@
         "date": {
           "name": "Date",
           "description": "Defaults to today."
+        },
+        "receipt": {
+          "name": "Receipt",
+          "description": "Receipt id returned by upload_receipt."
         }
       }
     },
@@ -243,6 +282,74 @@
         "date": {
           "name": "Date",
           "description": "Defaults to today."
+        },
+        "receipt": {
+          "name": "Receipt",
+          "description": "Receipt id returned by upload_receipt."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Total invoice amount."
+        }
+      }
+    },
+    "upload_receipt": {
+      "name": "Upload receipt",
+      "description": "Stores a file uploaded through Home Assistant (photo or PDF) and returns a receipt id to attach to an entry. Unattached receipts are deleted after 24 hours.",
+      "fields": {
+        "file": {
+          "name": "File",
+          "description": "Photo or PDF of the receipt."
+        }
+      }
+    },
+    "scan_receipt": {
+      "name": "Scan receipt",
+      "description": "Reads date, amounts and prices from a receipt with an AI task entity. Returns the values for you to confirm; nothing is saved.",
+      "fields": {
+        "receipt": {
+          "name": "Receipt",
+          "description": "Receipt id returned by upload_receipt."
+        },
+        "kind": {
+          "name": "Kind",
+          "description": "What the receipt is."
+        },
+        "ai_task_entity_id": {
+          "name": "AI task entity",
+          "description": "Defaults to the preferred AI task entity."
+        }
+      }
+    },
+    "attach_receipt": {
+      "name": "Attach receipt",
+      "description": "Attaches a receipt to an existing log entry, or to the latest completion of a service item.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Any entity of the vehicle, or of the service item when no log entry is given."
+        },
+        "receipt": {
+          "name": "Receipt",
+          "description": "Receipt id returned by upload_receipt."
+        },
+        "log_entry_id": {
+          "name": "Log entry id",
+          "description": "Id from the recent_log attribute of the odometer sensor."
+        }
+      }
+    },
+    "delete_log_entry": {
+      "name": "Delete log entry",
+      "description": "Deletes a fuel or charge entry together with its receipt.",
+      "fields": {
+        "entity_id": {
+          "name": "Vehicle entity",
+          "description": "Any entity of the vehicle."
+        },
+        "log_entry_id": {
+          "name": "Log entry id",
+          "description": "Id from the recent_log attribute of the odometer sensor."
         }
       }
     }

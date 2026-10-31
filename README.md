@@ -11,6 +11,7 @@ A custom Home Assistant integration for tracking your vehicles: service and main
 - **Service & maintenance** — items such as oil change, tires or inspection with a day interval, a km interval, or both. An item is due when **either** limit is reached.
 - **Mileage** — link an existing odometer sensor (miles are converted to km) or enter readings manually. Fuel/charge logs and completed services raise the manual odometer automatically.
 - **Fuel & charging log** — log refuels (liters) and charges (kWh) with cost and odometer. Prices per liter / kWh are recorded with every entry for trends. Get consumption (L/100 km, kWh/100 km), cost per km and cost this month.
+- **Receipts and invoices** — attach a photo or PDF to a fuel/charge entry or a completed service. Optionally let an AI task entity read date, amounts and prices from it to pre-fill the form.
 - **Events** — `vehicle_service_overdue` and `vehicle_service_completed` for automations.
 - **Lovelace cards** — `vehicle-card` (overview) and `vehicle-log-card` (add fuel/charge), both with a visual editor. Single values can be shown with any standard HA card.
 
@@ -81,7 +82,13 @@ Statistics notes: no full tank or full battery is assumed. Consumption over a sp
 | `vehicle.set_odometer` | Set the manual odometer. Lower values are rejected unless `allow_decrease: true` |
 | `vehicle.add_fuel` | Log a refuel: `liters`, `price_per_liter` (or `total_cost`, from which the price is derived), `odometer`, `date` |
 | `vehicle.add_charge` | Log a charge: `kwh`, `price_per_kwh` (or `total_cost`), `odometer`, `date` |
-| `vehicle.complete_service` | Record a service item as done: `odometer`, `date` |
+| `vehicle.complete_service` | Record a service item as done: `odometer`, `date`, `cost`, `receipt` |
+| `vehicle.upload_receipt` | Store a file uploaded via HA (`/api/file_upload`) and return a `receipt` id (response service) |
+| `vehicle.scan_receipt` | Read values from a receipt with an AI task entity (response service, nothing is saved) |
+| `vehicle.attach_receipt` | Attach a `receipt` to an existing log entry (`log_entry_id`) or to the latest completion of a service item |
+| `vehicle.delete_log_entry` | Delete a fuel/charge entry (`log_entry_id`, see `recent_log` on the odometer sensor) with its receipt |
+
+`add_fuel`, `add_charge` and `complete_service` also accept an optional `receipt` id.
 
 All services take an `entity_id`; any entity of the vehicle (or service item for `complete_service`) works.
 
@@ -124,6 +131,13 @@ entity: sensor.golf_odometer
 | `entity` | — | Any sensor of the vehicle |
 | `title` | auto | Card title |
 
+### Receipts and invoices
+
+- In `vehicle-log-card` use **Receipt** to take a photo or pick a file; it is attached when you press **Add**. On a service item in `vehicle-card` use the document-plus button to mark it done together with an invoice.
+- Photos are shrunk in the browser before upload. JPEG, PNG, WebP and PDF up to 15 MB are accepted.
+- Files are stored in `config/.storage/vehicle_receipts/` (included in HA backups) and are only served to logged-in users at `/api/vehicle/receipt/<id>`. They are not reachable via `/local`. Uploads that are never attached are deleted after 24 hours; deleting a log entry, service item or vehicle deletes its files.
+- **Scan with AI** appears when an `ai_task` entity exists. It sends the image to the AI provider you configured in Home Assistant (so it leaves your network if that provider is a cloud service), then fills the form for you to check. Values are never saved without your confirmation. With several AI task entities, set a preferred one in Home Assistant, or pass `ai_task_entity_id` to `vehicle.scan_receipt`.
+
 ### `vehicle-card` details
 
 It lists service items sorted by urgency with a button to mark them done. For a single value use e.g. a tile or entity card on `sensor.oil_change_km_remaining`.
@@ -158,6 +172,8 @@ docker compose -f dev/docker-compose.yml up -d
 ```bash
 python3 dev/seed.py
 ```
+
+The seed also adds a **fake AI task provider** (`dev/config/custom_components/fake_ai_task`) that returns canned values instead of reading the image, so you can try *Scan with AI* without an AI account. It is for development only.
 
 Open <http://localhost:8123/dashboard-vehicle>. After code changes restart with `docker compose -f dev/docker-compose.yml restart`. Reset everything by stopping the container and deleting `dev/config/.storage` plus the other generated files in `dev/config` (everything except `configuration.yaml` and `dashboards/`).
 

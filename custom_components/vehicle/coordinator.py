@@ -58,6 +58,7 @@ class ServiceItemData:
     last_date: datetime.date | None
     last_odometer: float | None
     info: ServiceInfo
+    history: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -199,6 +200,7 @@ class VehicleCoordinator(DataUpdateCoordinator[VehicleData]):
             last_date=last_date,
             last_odometer=last_odometer,
             info=info,
+            history=list(reversed(record["history"][-5:])),
         )
 
     async def _async_update_data(self) -> VehicleData:
@@ -273,6 +275,8 @@ class VehicleCoordinator(DataUpdateCoordinator[VehicleData]):
         *,
         date: datetime.date | None = None,
         odometer: float | None = None,
+        cost: float | None = None,
+        receipt: str | None = None,
     ) -> None:
         """Record a completed service item."""
         date = date or dt_util.now().date()
@@ -280,7 +284,7 @@ class VehicleCoordinator(DataUpdateCoordinator[VehicleData]):
             odometer = self.odometer[0]
         elif odometer > (self.odometer[0] or 0):
             self.store.set_odometer(self.config_entry.entry_id, odometer)
-        self.store.record_service(subentry_id, date.isoformat(), odometer)
+        self.store.record_service(subentry_id, date.isoformat(), odometer, cost, receipt)
         await self.async_refresh()
 
         item = self.data.items.get(subentry_id) if self.data else None
@@ -293,6 +297,8 @@ class VehicleCoordinator(DataUpdateCoordinator[VehicleData]):
                 "service": item.name if item else None,
                 "date": date.isoformat(),
                 "odometer": odometer,
+                "cost": cost,
+                "receipt": receipt,
                 "next_due_date": (
                     item.info.next_due_date.isoformat()
                     if item and item.info.next_due_date

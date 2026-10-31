@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 from pathlib import Path
 from typing import Any
@@ -10,10 +11,16 @@ import voluptuous as vol
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from .calc import KIND_CHARGE, KIND_FUEL
@@ -26,12 +33,21 @@ from .const import (
     SUBENTRY_TYPE_SERVICE,
 )
 from .coordinator import VehicleConfigEntry, VehicleCoordinator
+from .receipts import (
+    RECEIPT_RE,
+    ReceiptView,
+    async_cleanup_orphans,
+    async_delete,
+    async_import_upload,
+    mime_type,
+    receipt_path,
+)
 from .store import VehicleStore
 
 _LOGGER = logging.getLogger(__name__)
 
 FRONTEND_SCRIPT_PATH = f"/{DOMAIN}/vehicle-card.js"
-FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.2.0"
+FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.3.0"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -42,6 +58,8 @@ _OPT_DATE = {vol.Optional("date"): cv.date}
 _ODOMETER = vol.All(vol.Coerce(float), vol.Range(min=0))
 _POSITIVE = vol.All(vol.Coerce(float), vol.Range(min=0, min_included=False))
 _COST = vol.All(vol.Coerce(float), vol.Range(min=0))
+
+_RECEIPT = {vol.Optional("receipt"): vol.All(cv.string, vol.Match(RECEIPT_RE))}
 
 SET_ODOMETER_SCHEMA = vol.Schema(
     {
@@ -54,6 +72,7 @@ ADD_FUEL_SCHEMA = vol.Schema(
     {
         **_ENTITY,
         **_OPT_DATE,
+        **_RECEIPT,
         vol.Required("liters"): _POSITIVE,
         vol.Optional("total_cost"): _COST,
         vol.Optional("price_per_liter"): _COST,
@@ -64,6 +83,7 @@ ADD_CHARGE_SCHEMA = vol.Schema(
     {
         **_ENTITY,
         **_OPT_DATE,
+        **_RECEIPT,
         vol.Required("kwh"): _POSITIVE,
         vol.Optional("total_cost"): _COST,
         vol.Optional("price_per_kwh"): _COST,
@@ -71,8 +91,66 @@ ADD_CHARGE_SCHEMA = vol.Schema(
     }
 )
 COMPLETE_SERVICE_SCHEMA = vol.Schema(
-    {**_ENTITY, **_OPT_DATE, vol.Optional("odometer"): _ODOMETER}
+    {
+        **_ENTITY,
+        **_OPT_DATE,
+        **_RECEIPT,
+        vol.Optional("odometer"): _ODOMETER,
+        vol.Optional("cost"): _COST,
+    }
 )
+UPLOAD_RECEIPT_SCHEMA = vol.Schema({vol.Required("file"): cv.string})
+SCAN_RECEIPT_SCHEMA = vol.Schema(
+    {
+        vol.Required("receipt"): vol.All(cv.string, vol.Match(RECEIPT_RE)),
+        vol.Required("kind"): vol.In(["fuel", "charge", "service"]),
+        vol.Optional("ai_task_entity_id"): cv.entity_id,
+    }
+)
+ATTACH_RECEIPT_SCHEMA = vol.Schema(
+    {
+        **_ENTITY,
+        vol.Required("receipt"): vol.All(cv.string, vol.Match(RECEIPT_RE)),
+        vol.Optional("log_entry_id"): cv.string,
+    }
+)
+DELETE_LOG_ENTRY_SCHEMA = vol.Schema({**_ENTITY, vol.Required("log_entry_id"): cv.string})
+
+# What the AI task should extract from a receipt or invoice.
+_DATE = {"description": "Date of the receipt", "selector": {"date": {}}}
+_NUMBER = {"mode": "box", "step": "any"}
+
+
+def _number(description: str) -> dict[str, Any]:
+    return {"description": description, "selector": {"number": _NUMBER}}
+
+
+SCAN_STRUCTURES: dict[str, dict[str, Any]] = {
+    "fuel": {
+        "date": _DATE,
+        "liters": _number("Amount of fuel in liters"),
+        "price_per_liter": _number("Price per liter"),
+        "total_cost": _number("Total amount paid"),
+        "odometer": _number("Odometer reading in km, only if printed"),
+    },
+    "charge": {
+        "date": _DATE,
+        "kwh": _number("Energy charged in kWh"),
+        "price_per_kwh": _number("Price per kWh"),
+        "total_cost": _number("Total amount paid"),
+        "odometer": _number("Odometer reading in km, only if printed"),
+    },
+    "service": {
+        "date": _DATE,
+        "odometer": _number("Odometer / mileage reading in km, only if printed"),
+        "cost": _number("Total invoice amount including tax"),
+    },
+}
+SCAN_INSTRUCTIONS = {
+    "fuel": "This is a fuel station receipt. Extract the listed fields.",
+    "charge": "This is an electric vehicle charging receipt. Extract the listed fields.",
+    "service": "This is a vehicle workshop invoice. Extract the listed fields.",
+}
 
 
 def _resolve(
@@ -115,6 +193,40 @@ def _price_and_cost(
     )
 
 
+def _clean_scan(kind: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Keep only valid, non-empty values returned by the AI task."""
+    values: dict[str, Any] = {}
+    for key, raw in data.items():
+        if key not in SCAN_STRUCTURES[kind] or raw in (None, "", 0):
+            continue
+        if key == "date":
+            try:
+                values[key] = datetime.date.fromisoformat(str(raw)[:10]).isoformat()
+            except ValueError:
+                continue
+        else:
+            try:
+                number = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if number > 0:
+                values[key] = round(number, 4)
+    return values
+
+
+async def _checked_receipt(hass: HomeAssistant, receipt: str | None) -> str | None:
+    """Return the receipt id if it exists, else raise."""
+    if receipt is None:
+        return None
+    if await hass.async_add_executor_job(receipt_path, hass, receipt) is None:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="receipt_not_found",
+            translation_placeholders={"receipt": receipt},
+        )
+    return receipt
+
+
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up services, storage and the Lovelace card."""
     store = VehicleStore(hass)
@@ -150,6 +262,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="no_fuel_vehicle"
             )
+        receipt = await _checked_receipt(hass, call.data.get("receipt"))
         liters = call.data["liters"]
         price, cost = _price_and_cost(
             call.data.get("total_cost"), call.data.get("price_per_liter"), liters
@@ -163,6 +276,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                 "price": price,
                 "cost": cost,
                 "odometer": call.data.get("odometer"),
+                **({"receipt": receipt} if receipt else {}),
             },
         )
         await coordinator.async_refresh()
@@ -173,6 +287,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="no_electric_vehicle"
             )
+        receipt = await _checked_receipt(hass, call.data.get("receipt"))
         kwh = call.data["kwh"]
         price, cost = _price_and_cost(
             call.data.get("total_cost"), call.data.get("price_per_kwh"), kwh
@@ -186,6 +301,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                 "price": price,
                 "cost": cost,
                 "odometer": call.data.get("odometer"),
+                **({"receipt": receipt} if receipt else {}),
             },
         )
         await coordinator.async_refresh()
@@ -202,15 +318,118 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
             entity.config_subentry_id,
             date=call.data.get("date"),
             odometer=call.data.get("odometer"),
+            cost=call.data.get("cost"),
+            receipt=await _checked_receipt(hass, call.data.get("receipt")),
         )
+
+    async def upload_receipt(call: ServiceCall) -> ServiceResponse:
+        try:
+            receipt_id = await async_import_upload(hass, call.data["file"])
+        except HomeAssistantError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key=str(err)
+            ) from err
+        return {"receipt": receipt_id}
+
+    async def scan_receipt(call: ServiceCall) -> ServiceResponse:
+        receipt = await _checked_receipt(hass, call.data["receipt"])
+        kind = call.data["kind"]
+        if not hass.services.has_service("ai_task", "generate_data"):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="ai_task_unavailable"
+            )
+        request: dict[str, Any] = {
+            "task_name": "Vehicle receipt",
+            "instructions": (
+                f"{SCAN_INSTRUCTIONS[kind]} Only fill in values that are clearly "
+                "readable; leave everything else out. Do not guess."
+            ),
+            "structure": SCAN_STRUCTURES[kind],
+            "attachments": [
+                {
+                    "media_content_id": f"media-source://{DOMAIN}/{receipt}",
+                    "media_content_type": mime_type(receipt),
+                }
+            ],
+        }
+        if call.data.get("ai_task_entity_id"):
+            request["entity_id"] = call.data["ai_task_entity_id"]
+        elif len(candidates := hass.states.async_entity_ids("ai_task")) == 1:
+            # a single provider needs no "preferred entity" to be configured
+            request["entity_id"] = candidates[0]
+        try:
+            result = await hass.services.async_call(
+                "ai_task", "generate_data", request, blocking=True, return_response=True
+            )
+        except HomeAssistantError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="scan_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
+        data = (result or {}).get("data")
+        return {"values": _clean_scan(kind, data if isinstance(data, dict) else {})}
+
+    async def attach_receipt(call: ServiceCall) -> None:
+        coordinator, entity = _resolve(hass, call.data["entity_id"])
+        receipt = await _checked_receipt(hass, call.data["receipt"])
+        if call.data.get("log_entry_id"):
+            old = store.attach_to_log(
+                coordinator.config_entry.entry_id, call.data["log_entry_id"], receipt
+            )
+        elif entity.config_subentry_id:
+            old = store.attach_to_service(entity.config_subentry_id, receipt)
+        else:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="attach_target_missing"
+            )
+        if old is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="attach_target_not_found"
+            )
+        if old and old != receipt:
+            await async_delete(hass, [old])
+        await coordinator.async_refresh()
+
+    async def delete_log_entry(call: ServiceCall) -> None:
+        coordinator, _ = _resolve(hass, call.data["entity_id"])
+        entry = store.delete_log(
+            coordinator.config_entry.entry_id, call.data["log_entry_id"]
+        )
+        if entry is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="attach_target_not_found"
+            )
+        if entry.get("receipt"):
+            await async_delete(hass, [entry["receipt"]])
+        await coordinator.async_refresh()
 
     for name, handler, schema in (
         (SERVICE_SET_ODOMETER, set_odometer, SET_ODOMETER_SCHEMA),
         (SERVICE_ADD_FUEL, add_fuel, ADD_FUEL_SCHEMA),
         (SERVICE_ADD_CHARGE, add_charge, ADD_CHARGE_SCHEMA),
         (SERVICE_COMPLETE_SERVICE, complete_service, COMPLETE_SERVICE_SCHEMA),
+        ("attach_receipt", attach_receipt, ATTACH_RECEIPT_SCHEMA),
+        ("delete_log_entry", delete_log_entry, DELETE_LOG_ENTRY_SCHEMA),
     ):
         hass.services.async_register(DOMAIN, name, handler, schema=schema)
+    for name, handler, schema in (
+        ("upload_receipt", upload_receipt, UPLOAD_RECEIPT_SCHEMA),
+        ("scan_receipt", scan_receipt, SCAN_RECEIPT_SCHEMA),
+    ):
+        hass.services.async_register(
+            DOMAIN, name, handler, schema=schema, supports_response=SupportsResponse.ONLY
+        )
+
+    hass.http.register_view(ReceiptView())
+
+    async def _cleanup(_: Any = None) -> None:
+        removed = await async_cleanup_orphans(hass, store.referenced_receipts())
+        if removed:
+            _LOGGER.debug("Removed %s unused uploaded receipts", removed)
+
+    hass.async_create_task(_cleanup())
+    async_track_time_interval(hass, _cleanup, datetime.timedelta(hours=24))
 
     return True
 
@@ -237,7 +456,7 @@ async def _async_entry_updated(hass: HomeAssistant, entry: VehicleConfigEntry) -
         for sid, sub in entries.subentries.items()
         if sub.subentry_type == SUBENTRY_TYPE_SERVICE
     }
-    store.prune_services(known)
+    await async_delete(hass, store.prune_services(known))
     await hass.config_entries.async_reload(entry.entry_id)
 
 
@@ -249,6 +468,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: VehicleConfigEntry) -> 
 async def async_remove_entry(hass: HomeAssistant, entry: VehicleConfigEntry) -> None:
     """Delete stored data of a removed vehicle."""
     store: VehicleStore = hass.data[DOMAIN]["store"]
+    receipts: list[str] = []
     for sid in entry.subentries:
-        store.remove_service(sid)
-    store.remove_vehicle(entry.entry_id)
+        receipts += store.remove_service(sid)
+    receipts += store.remove_vehicle(entry.entry_id)
+    await async_delete(hass, receipts)
