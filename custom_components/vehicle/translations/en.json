@@ -117,8 +117,12 @@
           "unknown": "Unknown"
         }
       },
-      "service_days_remaining": {},
-      "service_km_remaining": {},
+      "service_days_remaining": {
+        "name": "Days remaining"
+      },
+      "service_km_remaining": {
+        "name": "Km remaining"
+      },
       "fuel_price": {
         "name": "Fuel price"
       },
@@ -127,10 +131,14 @@
       }
     },
     "binary_sensor": {
-      "service_overdue": {}
+      "service_overdue": {
+        "name": "Overdue"
+      }
     },
     "button": {
-      "service_complete": {}
+      "service_complete": {
+        "name": "Complete"
+      }
     }
   },
   "exceptions": {

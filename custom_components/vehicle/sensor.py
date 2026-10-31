@@ -173,10 +173,7 @@ class ServiceStatusSensor(ServiceItemEntity, SensorEntity):
         super().__init__(coordinator, subentry_id, "status")
         self._attr_options = [status.value for status in ServiceStatus]
 
-    @property
-    def name(self) -> str | None:
-        """Use the service item name."""
-        return self.item.name if self.item else None
+    _attr_name = None
 
     @property
     def icon(self) -> str | None:
@@ -221,11 +218,6 @@ class ServiceDaysSensor(ServiceItemEntity, SensorEntity):
         super().__init__(coordinator, subentry_id, "days_remaining")
 
     @property
-    def name(self) -> str | None:
-        """Combine item name and measure."""
-        return f"{self.item.name} days remaining" if self.item else None
-
-    @property
     def native_value(self) -> int | None:
         """Return the days remaining."""
         return self.item.info.days_remaining if self.item else None
@@ -243,11 +235,6 @@ class ServiceKmSensor(ServiceItemEntity, SensorEntity):
     def __init__(self, coordinator: VehicleCoordinator, subentry_id: str) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, subentry_id, "km_remaining")
-
-    @property
-    def name(self) -> str | None:
-        """Combine item name and measure."""
-        return f"{self.item.name} km remaining" if self.item else None
 
     @property
     def native_value(self) -> float | None:

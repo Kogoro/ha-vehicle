@@ -41,11 +41,6 @@ class ServiceOverdueSensor(ServiceItemEntity, BinarySensorEntity):
         super().__init__(coordinator, subentry_id, "overdue")
 
     @property
-    def name(self) -> str | None:
-        """Combine item name and measure."""
-        return f"{self.item.name} overdue" if self.item else None
-
-    @property
     def is_on(self) -> bool | None:
         """Return True if overdue."""
         return self.item.info.status is ServiceStatus.OVERDUE if self.item else None

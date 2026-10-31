@@ -63,11 +63,11 @@ Per vehicle:
 | `sensor.<vehicle>_cost_per_km` | Fuel + charge cost per km |
 | `sensor.<vehicle>_cost_this_month` | Fuel + charge cost in the current month |
 
-Per service item:
+Per service item (each item is its own device, linked to the vehicle device, so the vehicle's own entities are never mixed with item entities):
 
 | Entity | Description |
 |--------|-------------|
-| `sensor.<item>` | Status: `ok`, `due_soon`, `overdue`, `unknown`. Attributes with last/next due, days and km remaining |
+| `sensor.<vehicle>_<item>` | Status: `ok`, `due_soon`, `overdue`, `unknown`. Attributes with last/next due, days and km remaining |
 | `sensor.<item>_days_remaining` | Only if a day interval is set; negative when overdue |
 | `sensor.<item>_km_remaining` | Only if a km interval is set; negative when overdue |
 | `binary_sensor.<item>_overdue` | `on` when overdue |

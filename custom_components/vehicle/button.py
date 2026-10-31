@@ -36,11 +36,6 @@ class ServiceCompleteButton(ServiceItemEntity, ButtonEntity):
         """Initialize the button."""
         super().__init__(coordinator, subentry_id, "complete")
 
-    @property
-    def name(self) -> str | None:
-        """Combine item name and action."""
-        return f"{self.item.name} complete" if self.item else None
-
     async def async_press(self) -> None:
         """Record the completion."""
         await self.coordinator.async_complete_service(self.subentry_id)

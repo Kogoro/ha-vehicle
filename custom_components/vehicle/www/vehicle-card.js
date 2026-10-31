@@ -60,14 +60,19 @@ const findVehicle = (hass, entityId) => {
   const reg = hass.entities?.[entityId];
   const result = { items: [] };
   if (!reg?.device_id) return result;
+  // Service items live on their own devices, linked to the vehicle device.
+  const vehicleDeviceId = hass.devices?.[reg.device_id]?.via_device_id || reg.device_id;
   for (const [id, e] of Object.entries(hass.entities)) {
-    if (e.device_id !== reg.device_id || e.platform !== "vehicle") continue;
+    if (e.platform !== "vehicle" || !e.device_id) continue;
     const state = hass.states[id];
     if (!state) continue;
-    if (e.translation_key === "service_status") result.items.push(state);
-    else if (e.translation_key) result[e.translation_key] = state;
+    if (e.device_id === vehicleDeviceId) {
+      if (e.translation_key) result[e.translation_key] = state;
+    } else if (hass.devices?.[e.device_id]?.via_device_id === vehicleDeviceId && e.translation_key === "service_status") {
+      result.items.push(state);
+    }
   }
-  result.device = hass.devices?.[reg.device_id];
+  result.device = hass.devices?.[vehicleDeviceId];
   return result;
 };
 

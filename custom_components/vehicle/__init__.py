@@ -19,6 +19,7 @@ from homeassistant.core import (
 )
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
@@ -442,9 +443,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: VehicleConfigEntry) -> b
     entry.runtime_data = coordinator
     coordinator.start_tracking()
 
+    _async_prepare_devices(hass, entry, coordinator)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
+
+
+def _async_prepare_devices(
+    hass: HomeAssistant, entry: VehicleConfigEntry, coordinator: VehicleCoordinator
+) -> None:
+    """Create the vehicle device and unlink it from service items.
+
+    Service items have their own devices (linked via ``via_device``). Earlier
+    versions attached the shared vehicle device to every service item, which
+    showed all vehicle entities under each item.
+    """
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=entry.title,
+        manufacturer="Vehicle",
+        model=coordinator.fuel_type.value.capitalize(),
+    )
+    for subentry_id in device.config_entries_subentries.get(entry.entry_id, set()):
+        if subentry_id is not None:
+            dev_reg.async_update_device(
+                device.id,
+                remove_config_entry_id=entry.entry_id,
+                remove_config_subentry_id=subentry_id,
+            )
 
 
 async def _async_entry_updated(hass: HomeAssistant, entry: VehicleConfigEntry) -> None:
