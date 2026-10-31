@@ -174,6 +174,7 @@ The Refuel and Charge tabs take date, amount, price per unit and optionally the 
 
 - Use the **Photo / file** button in the entry card. The file is attached when you press the button to add the entry. Photos are shrunk in the browser before upload. JPEG, PNG, WebP and PDF up to 15 MB are accepted.
 - Files are stored in `config/.storage/vehicle_receipts/` (included in HA backups) and are only served to logged-in users at `/api/vehicle/receipt/<id>`. They are not reachable via `/local`. Uploads that are never attached are deleted after 24 hours; deleting a log entry, service item or vehicle deletes its files.
+- You can also browse them in Home Assistant's **Media** tab under **Vehicle receipts**: one folder per vehicle, newest first, titled like `2026-10-30 · Refuel 41.2 L · 72.47 EUR`.
 - **Scan with AI** appears when an `ai_task` entity exists. It sends the image to the AI provider you configured in Home Assistant (so it leaves your network if that provider is a cloud service), then fills the form for you to check. Values are never saved without your confirmation. With several AI task entities, set a preferred one in Home Assistant, or pass `ai_task_entity_id` to `vehicle.scan_receipt`.
 
 ## Notifications

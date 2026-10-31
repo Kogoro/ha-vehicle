@@ -7,6 +7,7 @@ import pytest
 from aiohttp import FormData
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.setup import async_setup_component
 
 from custom_components.vehicle.const import DOMAIN
 from custom_components.vehicle.receipts import async_cleanup_orphans, receipt_dir
@@ -147,3 +148,44 @@ async def test_orphan_cleanup(hass: HomeAssistant, hass_client) -> None:
     assert (receipt_dir(hass) / kept).exists()
     assert (receipt_dir(hass) / fresh).exists()
     assert not (receipt_dir(hass) / old).exists()
+
+
+async def test_media_browser_lists_receipts(hass: HomeAssistant, hass_client) -> None:
+    """The 'Vehicle receipts' media source can be opened: vehicles, then their files."""
+    from homeassistant.components import media_source
+    from homeassistant.components.media_player import BrowseError
+
+    entry = await _setup(hass)
+    entity = _entity(hass, "sensor", "_odometer")
+    assert await async_setup_component(hass, "media_source", {})
+    first = await _upload(hass, hass_client)
+    second = await _upload(hass, hass_client)
+    await hass.services.async_call(
+        DOMAIN, "add_fuel", {"entity_id": entity, "liters": 41.2, "price_per_liter": 1.759, "date": "2026-10-30", "receipt": first}, blocking=True
+    )
+    await hass.services.async_call(
+        DOMAIN,
+        "complete_service",
+        {"entity_id": _entity(hass, "sensor", "oil_status"), "cost": 289.5, "date": "2026-10-12", "receipt": second},
+        blocking=True,
+    )
+
+    root = await media_source.async_browse_media(hass, "media-source://vehicle")
+    assert root.title == "Vehicle receipts" and root.can_expand
+    assert [c.title for c in root.children] == ["Golf (2)"]
+
+    folder = await media_source.async_browse_media(hass, root.children[0].media_content_id)
+    assert [c.title for c in folder.children] == [
+        "2026-10-30 · Refuel 41.2 L · 72.47 EUR",
+        "2026-10-12 · Oil change done · 289.50 EUR",
+    ]
+    assert folder.children[0].can_play and folder.children[0].media_content_type == "image/png"
+
+    resolved = await media_source.async_resolve_media(hass, folder.children[0].media_content_id, None)
+    assert resolved.url == f"/api/vehicle/receipt/{first}"
+
+    leaf = await media_source.async_browse_media(hass, f"media-source://vehicle/{first}")
+    assert leaf.can_play and not leaf.can_expand
+    with pytest.raises(BrowseError):
+        await media_source.async_browse_media(hass, "media-source://vehicle/vehicle/nope")
+    assert entry.title == "Golf"
