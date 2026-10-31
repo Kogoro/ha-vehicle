@@ -107,7 +107,7 @@
         "name": "Cost per km"
       },
       "monthly_cost": {
-        "name": "Cost this month"
+        "name": "Fuel and charging cost this month"
       },
       "service_status": {
         "state": {
@@ -124,6 +124,9 @@
       },
       "energy_price": {
         "name": "Energy price"
+      },
+      "monthly_service_cost": {
+        "name": "Service cost this month"
       }
     },
     "binary_sensor": {
@@ -335,7 +338,7 @@
         },
         "log_entry_id": {
           "name": "Log entry id",
-          "description": "Id from the recent_log attribute of the odometer sensor."
+          "description": "Id from the activity attribute of the odometer sensor."
         }
       }
     },
@@ -349,7 +352,7 @@
         },
         "log_entry_id": {
           "name": "Log entry id",
-          "description": "Id from the recent_log attribute of the odometer sensor."
+          "description": "Id from the activity attribute of the odometer sensor."
         }
       }
     }

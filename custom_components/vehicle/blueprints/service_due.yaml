@@ -1,0 +1,60 @@
+blueprint:
+  name: Vehicle service due notification
+  description: >-
+    Get notified when a service item of a vehicle becomes due soon or overdue
+    (for example "Golf: Tire check is overdue"). Choose what happens in the
+    action; the default creates a persistent notification. In your own
+    actions, `trigger.event.data` contains `vehicle`, `service`,
+    `days_remaining` and `km_remaining`.
+  domain: automation
+  source_url: https://github.com/Kogoro/ha-vehicle/blob/main/custom_components/vehicle/blueprints/service_due.yaml
+  input:
+    notify_due_soon:
+      name: Notify when due soon
+      description: Notify when an item gets close to its limit (the warning window of the vehicle).
+      default: true
+      selector:
+        boolean:
+    notify_overdue:
+      name: Notify when overdue
+      default: true
+      selector:
+        boolean:
+    notification:
+      name: Notification
+      description: What to do. `trigger.id` is `due_soon` or `overdue`.
+      selector:
+        action:
+      default:
+        - action: persistent_notification.create
+          data:
+            title: "{{ trigger.event.data.vehicle }}"
+            message: >-
+              {{ trigger.event.data.service }} is
+              {{ 'overdue' if trigger.id == 'overdue' else 'due soon' }}
+              {%- set d = trigger.event.data.days_remaining -%}
+              {%- set km = trigger.event.data.km_remaining -%}
+              {%- if d is not none and km is not none %} ({{ d }} days, {{ km | round(0) | int }} km)
+              {%- elif d is not none %} ({{ d }} days)
+              {%- elif km is not none %} ({{ km | round(0) | int }} km)
+              {%- endif %}.
+
+variables:
+  notify_due_soon: !input notify_due_soon
+  notify_overdue: !input notify_overdue
+
+triggers:
+  - trigger: event
+    event_type: vehicle_service_due_soon
+    id: due_soon
+  - trigger: event
+    event_type: vehicle_service_overdue
+    id: overdue
+
+conditions:
+  - condition: template
+    value_template: >-
+      {{ (trigger.id == 'due_soon' and notify_due_soon)
+         or (trigger.id == 'overdue' and notify_overdue) }}
+
+actions: !input notification

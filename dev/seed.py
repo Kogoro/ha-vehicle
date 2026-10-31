@@ -348,7 +348,11 @@ def main():
                 api("POST", "/api/services/vehicle/add_fuel", {
                     "entity_id": entity, "date": ago(days), "odometer": odo,
                     "liters": liters, "price_per_liter": price})
+            api("POST", "/api/services/vehicle/complete_service", {
+                "entity_id": "sensor.golf_oil_change", "date": ago(18), "odometer": 47900, "cost": 289.5})
         else:
+            api("POST", "/api/services/vehicle/complete_service", {
+                "entity_id": "sensor.tesla_cabin_filter", "date": ago(10), "odometer": 11700, "cost": 48.9})
             for days, odo, kwh, price in [(30, 11500, 45.0, 0.34), (14, 11800, 52.5, 0.29), (3, 12000, 40.0, 0.36)]:
                 api("POST", "/api/services/vehicle/add_charge", {
                     "entity_id": entity, "date": ago(days), "odometer": odo,

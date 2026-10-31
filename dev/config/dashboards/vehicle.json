@@ -5,26 +5,39 @@
       "title": "Vehicles",
       "cards": [
         {
-          "type": "custom:vehicle-card",
+          "type": "custom:vehicle-info-card",
           "entity": "sensor.golf_odometer"
         },
         {
-          "type": "custom:vehicle-card",
+          "type": "custom:vehicle-info-card",
+          "entity": "sensor.tesla_odometer",
+          "layout": "compact"
+        },
+        {
+          "type": "custom:vehicle-info-card",
+          "entity": "sensor.golf_odometer",
+          "layout": "minimal"
+        },
+        {
+          "type": "custom:vehicle-activity-card",
+          "entity": "sensor.golf_odometer"
+        },
+        {
+          "type": "custom:vehicle-activity-card",
           "entity": "sensor.tesla_odometer"
         },
         {
-          "type": "custom:vehicle-log-card",
+          "type": "custom:vehicle-entry-card",
           "entity": "sensor.golf_odometer"
         },
         {
-          "type": "custom:vehicle-log-card",
+          "type": "custom:vehicle-entry-card",
           "entity": "sensor.tesla_odometer"
         },
         {
           "type": "entities",
           "title": "Single values (standard cards)",
           "entities": [
-            "sensor.golf_fuel_price",
             "sensor.golf_fuel_consumption",
             "sensor.golf_oil_change_km_remaining",
             "sensor.golf_tire_check_days_remaining",

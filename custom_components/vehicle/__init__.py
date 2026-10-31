@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -49,8 +50,9 @@ from .store import VehicleStore
 
 _LOGGER = logging.getLogger(__name__)
 
-FRONTEND_SCRIPT_PATH = f"/{DOMAIN}/vehicle-card.js"
-FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.3.0"
+FRONTEND_SCRIPT_PATH = f"/{DOMAIN}/vehicle-cards.js"
+FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.4.0"
+BLUEPRINTS_DIR = Path(__file__).parent / "blueprints"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -248,7 +250,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         [
             StaticPathConfig(
                 url_path=FRONTEND_SCRIPT_PATH,
-                path=str(Path(__file__).parent / "www" / "vehicle-card.js"),
+                path=str(Path(__file__).parent / "www" / "vehicle-cards.js"),
                 cache_headers=False,
             )
         ]
@@ -434,6 +436,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         )
 
     hass.http.register_view(ReceiptView())
+    await _async_install_blueprints(hass)
 
     async def _cleanup(_: Any = None) -> None:
         removed = await async_cleanup_orphans(hass, store.referenced_receipts())
@@ -446,6 +449,22 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     )
 
     return True
+
+
+async def _async_install_blueprints(hass: HomeAssistant) -> None:
+    """Copy the bundled automation blueprints into the config directory."""
+    if not BLUEPRINTS_DIR.is_dir():
+        return
+    target_dir = Path(hass.config.path("blueprints", "automation", DOMAIN))
+
+    def _copy() -> None:
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for source in BLUEPRINTS_DIR.glob("*.yaml"):
+            target = target_dir / source.name
+            if not target.exists() or target.read_bytes() != source.read_bytes():
+                shutil.copy2(source, target)
+
+    await hass.async_add_executor_job(_copy)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: VehicleConfigEntry) -> bool:

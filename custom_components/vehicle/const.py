@@ -32,6 +32,7 @@ SERVICE_COMPLETE_SERVICE = "complete_service"
 
 # Events
 EVENT_SERVICE_OVERDUE = "vehicle_service_overdue"
+EVENT_SERVICE_DUE_SOON = "vehicle_service_due_soon"
 EVENT_SERVICE_COMPLETED = "vehicle_service_completed"
 
 # unique-id suffixes of the vehicle-level entities (everything else belongs to a service item)
@@ -43,10 +44,12 @@ VEHICLE_KEYS = (
     "energy_price",
     "cost_per_km",
     "monthly_cost",
+    "monthly_service_cost",
 )
 
 # Number of log entries exposed as attribute
-RECENT_LOG_SIZE = 10
+# Number of merged activity entries (fuel, charge, service) exposed as attribute
+ACTIVITY_SIZE = 40
 
 
 class FuelType(StrEnum):

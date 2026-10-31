@@ -143,3 +143,61 @@ def monthly_cost(entries: list[dict[str, Any]], today: datetime.date) -> float:
         if date.year == today.year and date.month == today.month:
             total += e.get("cost") or 0
     return round(total, 2)
+
+
+def _in_month(date: str, today: datetime.date) -> bool:
+    parsed = datetime.date.fromisoformat(date)
+    return parsed.year == today.year and parsed.month == today.month
+
+
+def monthly_cost_by_kind(
+    entries: list[dict[str, Any]], today: datetime.date
+) -> tuple[float, float]:
+    """Return (fuel, energy) costs logged in the month of ``today``."""
+    fuel = energy = 0.0
+    for e in entries:
+        if _in_month(e["date"], today):
+            if e["kind"] == KIND_CHARGE:
+                energy += e.get("cost") or 0
+            else:
+                fuel += e.get("cost") or 0
+    return round(fuel, 2), round(energy, 2)
+
+
+def monthly_service_cost(
+    histories: list[list[dict[str, Any]]], today: datetime.date
+) -> float:
+    """Return the cost of services completed in the month of ``today``."""
+    total = 0.0
+    for history in histories:
+        for record in history:
+            if _in_month(record["date"], today):
+                total += record.get("cost") or 0
+    return round(total, 2)
+
+
+def build_activity(
+    log: list[dict[str, Any]],
+    services: list[tuple[str, str, list[dict[str, Any]]]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Merge fuel/charge entries and service completions, newest first.
+
+    ``services`` holds ``(subentry_id, item name, history)`` tuples.
+    """
+    merged: list[dict[str, Any]] = [dict(entry) for entry in log]
+    for subentry_id, name, history in services:
+        for index, record in enumerate(history):
+            merged.append(
+                {
+                    "id": f"{subentry_id}:{index}",
+                    "kind": "service",
+                    "name": name,
+                    "date": record["date"],
+                    "odometer": record.get("odometer"),
+                    "cost": record.get("cost"),
+                    **({"receipt": record["receipt"]} if record.get("receipt") else {}),
+                }
+            )
+    merged.sort(key=lambda e: (e["date"], e.get("odometer") or 0), reverse=True)
+    return merged[:limit]

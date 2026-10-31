@@ -43,7 +43,7 @@ async def test_upload_attach_serve_delete(hass: HomeAssistant, hass_client) -> N
         {"entity_id": entity, "liters": 30, "price_per_liter": 1.8, "receipt": receipt},
         blocking=True,
     )
-    log = hass.states.get(entity).attributes["recent_log"]
+    log = hass.states.get(entity).attributes["activity"]
     assert log[0]["receipt"] == receipt
 
     client = await hass_client()
@@ -56,7 +56,7 @@ async def test_upload_attach_serve_delete(hass: HomeAssistant, hass_client) -> N
     await hass.services.async_call(
         DOMAIN, "delete_log_entry", {"entity_id": entity, "log_entry_id": log[0]["id"]}, blocking=True
     )
-    assert hass.states.get(entity).attributes["recent_log"] == []
+    assert hass.states.get(entity).attributes["activity"] == []
     assert not (receipt_dir(hass) / receipt).exists()
 
 

@@ -44,7 +44,7 @@ VEHICLE_SENSORS: tuple[VehicleSensorDescription, ...] = (
         attrs_fn=lambda d: {
             "source": d.odometer_source,
             "fuel_type": d.fuel_type.value,
-            "recent_log": d.recent_log,
+            "activity": d.activity,
         },
     ),
     VehicleSensorDescription(
@@ -96,6 +96,14 @@ VEHICLE_SENSORS: tuple[VehicleSensorDescription, ...] = (
         device_class=SensorDeviceClass.MONETARY,
         suggested_display_precision=2,
         value_fn=lambda d: d.monthly_cost,
+        attrs_fn=lambda d: {"fuel": d.monthly_fuel_cost, "energy": d.monthly_energy_cost},
+    ),
+    VehicleSensorDescription(
+        key="monthly_service_cost",
+        translation_key="monthly_service_cost",
+        device_class=SensorDeviceClass.MONETARY,
+        suggested_display_precision=2,
+        value_fn=lambda d: d.monthly_service_cost,
     ),
 )
 
@@ -140,7 +148,7 @@ class VehicleSensor(VehicleEntity, SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator, description.key)
         self.entity_description = description
-        if description.key == "monthly_cost":
+        if description.key in ("monthly_cost", "monthly_service_cost"):
             self._attr_native_unit_of_measurement = currency
         elif description.key == "fuel_price":
             self._attr_native_unit_of_measurement = f"{currency}/L"

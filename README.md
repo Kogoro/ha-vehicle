@@ -12,10 +12,12 @@ A custom Home Assistant integration for tracking your vehicles: service and main
 - **Mileage** — link an existing odometer sensor (miles are converted to km) or enter readings manually. Fuel/charge logs and completed services raise the manual odometer automatically.
 - **Fuel & charging log** — log refuels (liters) and charges (kWh) with cost and odometer. Prices per liter / kWh are recorded with every entry for trends. Get consumption (L/100 km, kWh/100 km), cost per km and cost this month.
 - **Receipts and invoices** — attach a photo or PDF to a fuel/charge entry or a completed service. Optionally let an AI task entity read date, amounts and prices from it to pre-fill the form.
-- **Events** — `vehicle_service_overdue` and `vehicle_service_completed` for automations.
-- **Lovelace cards** — `vehicle-card` (overview) and `vehicle-log-card` (add fuel/charge), both with a visual editor. Single values can be shown with any standard HA card.
+- **Events and a blueprint** — `vehicle_service_due_soon`, `vehicle_service_overdue` and `vehicle_service_completed`, plus a ready-made notification blueprint.
+- **Three Lovelace cards**, each with a visual editor: an **info** card (mileage, consumption, monthly costs, service status), an **activity** card (timeline of refuels, charges and services with links to receipts) and an **entry** card (add a refuel, charge or completed service, with receipt upload). Single values can be shown with any standard HA card.
 
 ![Dashboard with two demo vehicles](docs/dashboard.png)
+
+Design mockups and decisions: [docs/design](docs/design).
 
 ## Installation
 
@@ -55,13 +57,14 @@ Per vehicle:
 
 | Entity | Description |
 |--------|-------------|
-| `sensor.<vehicle>_odometer` | Odometer in km. Attributes: `source` (`sensor`/`manual`), `recent_log` |
+| `sensor.<vehicle>_odometer` | Odometer in km. Attributes: `source` (`sensor`/`manual`), `fuel_type`, `activity` (newest 40 refuels, charges and service completions, merged) |
 | `sensor.<vehicle>_fuel_price` | Price per liter of the latest refuel (not for electric); history/trends via HA statistics |
 | `sensor.<vehicle>_energy_price` | Price per kWh of the latest charge (hybrid/electric) |
 | `sensor.<vehicle>_fuel_consumption` | Average L/100 km (not for electric). Attribute `recent` |
 | `sensor.<vehicle>_energy_consumption` | Average kWh/100 km (hybrid/electric). Attribute `recent` |
 | `sensor.<vehicle>_cost_per_km` | Fuel + charge cost per km |
-| `sensor.<vehicle>_cost_this_month` | Fuel + charge cost in the current month |
+| `sensor.<vehicle>_cost_this_month` | Fuel + charging cost in the current month. Attributes `fuel` and `energy` hold the split |
+| `sensor.<vehicle>_service_cost_this_month` | Cost of services completed in the current month (from the cost you enter when completing them) |
 
 Per service item (these share the vehicle's single device, so the UI shows one device per vehicle; the item's name is part of the entity name):
 
@@ -86,7 +89,7 @@ Statistics notes: no full tank or full battery is assumed. Consumption over a sp
 | `vehicle.upload_receipt` | Store a file uploaded via HA (`/api/file_upload`) and return a `receipt` id (response service) |
 | `vehicle.scan_receipt` | Read values from a receipt with an AI task entity (response service, nothing is saved) |
 | `vehicle.attach_receipt` | Attach a `receipt` to an existing log entry (`log_entry_id`) or to the latest completion of a service item |
-| `vehicle.delete_log_entry` | Delete a fuel/charge entry (`log_entry_id`, see `recent_log` on the odometer sensor) with its receipt |
+| `vehicle.delete_log_entry` | Delete a fuel/charge entry (`log_entry_id`, see `activity` on the odometer sensor) with its receipt |
 
 `add_fuel`, `add_charge` and `complete_service` also accept an optional `receipt` id.
 
@@ -101,75 +104,85 @@ data:
   odometer: 45210
 ```
 
-## Lovelace card
+## Lovelace cards
 
-The card is registered automatically.
+The cards are registered automatically. Add them from the dashboard editor ("Vehicle info", "Vehicle activity", "Vehicle: add entry") and choose the **vehicle** in the visual editor; there is exactly one device per vehicle (e.g. *Golf*). In YAML, use either `device` (the device id) or `entity` (any entity of the vehicle, e.g. its odometer sensor). Only options you change are saved to the card. Mockups of the layouts are in [docs/design](docs/design).
+
+### `vehicle-info-card` — status at a glance
+
+Mileage, consumption, costs this month and service status. Read-only; tapping a service item opens its details.
 
 ```yaml
-type: custom:vehicle-card
+type: custom:vehicle-info-card
 entity: sensor.golf_odometer
+layout: compact
 ```
-
-In the visual editor you pick the **vehicle** (there is exactly one device per vehicle, e.g. *Golf*). In YAML, use either `device` (the device id) or `entity` (any entity of the vehicle, e.g. its odometer).
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `device` / `entity` | — | The vehicle: its device id, or any of its entities (YAML only) |
-| `show_title` | `true` | Show the title |
-| `title` | vehicle name | Card title |
-| `icon` | `mdi:car` | Title icon (empty for none) |
+| `layout` | `normal` | `normal`, `compact` (stats on one line) or `minimal` (everything in the header, services as chips) |
+| `show_title`, `title`, `icon` | `true`, vehicle name, `mdi:car` | Title row |
 | `show_odometer` | `true` | Show the mileage |
-| `show_stats` | `true` | Show the statistics row |
-| `stats` | all | Which statistics: `fuel_consumption`, `energy_consumption`, `fuel_price`, `energy_price`, `cost_per_km`, `monthly_cost` |
+| `show_consumption` | `true` | Average L/100 km and/or kWh/100 km (hybrids show both) |
+| `show_costs` | `true` | Costs this month: fuel/charging plus service |
+| `show_cost_split` | `true` | In `normal`: bar and legend splitting the costs (fuel, charging, service) |
 | `show_services` | `true` | Show the service items |
-| `service_filter` | `all` | `all`, or `attention` for only overdue / due-soon items |
-| `max_services` | `0` | Limit the number of service items (0 = all) |
-| `show_service_actions` | `true` | Show the "done" and "done with invoice" buttons |
-| `show_log` | `true` | Show recent refuels and charges |
-| `log_entries` | `5` | Number of log entries (1–10) |
-| `show_headings` | `true` | Show the "Service" and "Recent refuels" headings |
+| `service_layout` | `auto` | `auto` (one line each, chips in `minimal`), `list` (two lines), `rows` or `chips` |
+| `service_filter` | `all` | `all` or `attention` (only overdue or due soon) |
+| `max_services` | `0` | Limit the number of items (0 = all) |
+| `show_headings` | `true` | Show the "Service" heading |
 
-Everything above is also available in the visual editor, grouped into Header, Statistics, Service items and Refuels and charges. Only options you change are saved to the card.
+### `vehicle-activity-card` — what happened
 
-```yaml
-# example: compact "what needs attention" card without a title
-type: custom:vehicle-card
-entity: sensor.golf_odometer
-show_title: false
-show_stats: false
-show_log: false
-service_filter: attention
-show_service_actions: false
-```
-
-### `vehicle-log-card` — add fuel / charge
-
-A small form to log a refuel or charge (date, liters or kWh, price per unit, optional odometer). It shows the total, hints the last price and current odometer, and calls `vehicle.add_fuel` / `vehicle.add_charge`. Hybrids get a Fuel/Charge switch.
+A timeline of refuels, charges and completed services, grouped by month, with the cost and a paperclip that opens the stored receipt or invoice. Types a vehicle has no entries for do not appear (no "Charges" filter for a petrol car). The card only links files; uploading happens in the entry card.
 
 ```yaml
-type: custom:vehicle-log-card
+type: custom:vehicle-activity-card
 entity: sensor.golf_odometer
+show_charges: false
+entries: 5
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `device` / `entity` | — | The vehicle: its device id, or any of its entities (YAML only) |
-| `show_title` | `true` | Show the title |
-| `title` | auto | Card title |
-| `icon` | `mdi:gas-station` | Title icon (empty for none) |
+| `show_refuels`, `show_charges`, `show_service` | `true` | Which types to show (a type also needs entries to appear) |
+| `show_title`, `title`, `icon` | `true`, "<vehicle> · Activity" | Title row |
+| `entries` | `8` | Entries shown; "Show more" loads the next batch |
+| `show_filters` | `true` | Filter chips (shown when there is more than one type) |
+| `group_by_month` | `true` | Month headings |
+| `show_costs` | `true` | Cost per entry |
+| `show_files` | `true` | Paperclip links to receipts and invoices |
+
+### `vehicle-entry-card` — add an entry
+
+Tabs for **Refuel**, **Charge** and **Service**, each with an optional receipt or invoice (photo or file). Tabs follow the vehicle: Refuel for petrol, diesel and hybrid, Charge for hybrid and electric, Service when the vehicle has service items.
+
+```yaml
+type: custom:vehicle-entry-card
+entity: sensor.golf_odometer
+show_service: false
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `show_refuel`, `show_charge`, `show_service` | `true` | Which tabs to offer (also limited by the vehicle) |
+| `show_title`, `title`, `icon` | `true`, "<vehicle> · Add entry" | Title row |
+
+The Refuel and Charge tabs take date, amount, price per unit and optionally the odometer; the Service tab takes the service item, date, odometer and cost and records it as done. The cards call `vehicle.add_fuel`, `vehicle.add_charge` and `vehicle.complete_service`.
 
 ### Receipts and invoices
 
-- In `vehicle-log-card` use **Receipt** to take a photo or pick a file; it is attached when you press **Add**. On a service item in `vehicle-card` use the document-plus button to mark it done together with an invoice.
-- Photos are shrunk in the browser before upload. JPEG, PNG, WebP and PDF up to 15 MB are accepted.
+- Use the **Photo / file** button in the entry card. The file is attached when you press the button to add the entry. Photos are shrunk in the browser before upload. JPEG, PNG, WebP and PDF up to 15 MB are accepted.
 - Files are stored in `config/.storage/vehicle_receipts/` (included in HA backups) and are only served to logged-in users at `/api/vehicle/receipt/<id>`. They are not reachable via `/local`. Uploads that are never attached are deleted after 24 hours; deleting a log entry, service item or vehicle deletes its files.
 - **Scan with AI** appears when an `ai_task` entity exists. It sends the image to the AI provider you configured in Home Assistant (so it leaves your network if that provider is a cloud service), then fills the form for you to check. Values are never saved without your confirmation. With several AI task entities, set a preferred one in Home Assistant, or pass `ai_task_entity_id` to `vehicle.scan_receipt`.
 
-### `vehicle-card` details
+## Notifications
 
-It lists service items sorted by urgency with a button to mark them done. For a single value use e.g. a tile or entity card on `sensor.oil_change_km_remaining`.
+The integration fires `vehicle_service_due_soon` and `vehicle_service_overdue` when an item **changes** to that status (not for items that already had it when Home Assistant started), and `vehicle_service_completed` when you complete one. Event data: `vehicle`, `service`, `days_remaining`, `km_remaining`.
 
-## Automation example
+A ready-made blueprint is installed to `config/blueprints/automation/vehicle/service_due.yaml`. **Settings → Automations → Create → Use a blueprint → Vehicle service due notification**, then choose whether to notify when *due soon*, *overdue* or both and what to do (default: a persistent notification such as "Golf: Tire check is overdue (-30 days)"). Pick your phone's notify action to get push notifications.
+
+Or write it yourself:
 
 ```yaml
 automation:
@@ -183,8 +196,6 @@ automation:
           title: "{{ trigger.event.data.vehicle }}"
           message: "{{ trigger.event.data.service }} is overdue."
 ```
-
-The first refresh after a restart only records which items are already overdue, so you are not notified again after every restart.
 
 ## Development
 

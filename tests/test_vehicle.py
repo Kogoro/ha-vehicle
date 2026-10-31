@@ -135,9 +135,9 @@ async def test_fuel_log_and_stats(hass: HomeAssistant) -> None:
     assert float(hass.states.get(_entity(hass, "sensor", "_fuel_price")).state) == 1.7
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(DOMAIN, "add_fuel", {"entity_id": entity, "liters": 10}, blocking=True)
-    assert len(hass.states.get(entity).attributes["recent_log"]) == 4
-    assert today.isoformat() == hass.states.get(entity).attributes["recent_log"][0]["date"]
-    assert "full" not in hass.states.get(entity).attributes["recent_log"][0]
+    assert len(hass.states.get(entity).attributes["activity"]) == 4
+    assert today.isoformat() == hass.states.get(entity).attributes["activity"][0]["date"]
+    assert "full" not in hass.states.get(entity).attributes["activity"][0]
 
     with pytest.raises(StopIteration):
         _entity(hass, "sensor", "_energy_consumption")
