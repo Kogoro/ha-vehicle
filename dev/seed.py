@@ -82,11 +82,14 @@ def login():
 
 def main():
     token = login()
-    api = lambda m, p, b=None: call(m, p, b, token=token)  # noqa: E731
+    def api(method, path, body=None):
+        return call(method, path, body, token=token)
 
     existing = {e["title"]: e["entry_id"] for e in api("GET", "/api/config/config_entries/entry?domain=vehicle")}
     today = datetime.date.today()
-    ago = lambda days: (today - datetime.timedelta(days=days)).isoformat()  # noqa: E731
+
+    def ago(days):
+        return (today - datetime.timedelta(days=days)).isoformat()
 
     vehicles = {
         "Golf": {
