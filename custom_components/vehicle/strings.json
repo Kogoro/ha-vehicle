@@ -1,0 +1,243 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add vehicle",
+        "description": "Link an existing odometer sensor to track mileage automatically. Without one, you enter readings manually or via fuel logs.",
+        "data": {
+          "name": "Name",
+          "fuel_type": "Drive type",
+          "odometer_entity": "Odometer entity (optional)",
+          "warn_days": "Warn when due within (days)",
+          "warn_km": "Warn when due within (km)"
+        }
+      },
+      "reconfigure": {
+        "title": "Vehicle settings",
+        "data": {
+          "name": "Name",
+          "fuel_type": "Drive type",
+          "odometer_entity": "Odometer entity (optional)",
+          "warn_days": "Warn when due within (days)",
+          "warn_km": "Warn when due within (km)"
+        }
+      }
+    },
+    "error": {
+      "name_required": "Please enter a name."
+    },
+    "abort": {
+      "already_configured": "A vehicle with this name already exists.",
+      "reconfigure_successful": "Vehicle updated."
+    }
+  },
+  "config_subentries": {
+    "service_item": {
+      "initial_status": "Add service item",
+      "entry_type": "Service item",
+      "step": {
+        "user": {
+          "title": "Add service item",
+          "description": "Set a day interval, a km interval, or both. The item is due when either is reached.",
+          "data": {
+            "name": "Name",
+            "interval_days": "Repeat every (days)",
+            "interval_km": "Repeat every (km)",
+            "last_service_date": "Last done on",
+            "last_service_odometer": "Odometer at last service (km)",
+            "description": "Description",
+            "icon": "Icon"
+          }
+        },
+        "reconfigure": {
+          "title": "Edit service item",
+          "description": "Set a day interval, a km interval, or both. The item is due when either is reached.",
+          "data": {
+            "name": "Name",
+            "interval_days": "Repeat every (days)",
+            "interval_km": "Repeat every (km)",
+            "last_service_date": "Last done on",
+            "last_service_odometer": "Odometer at last service (km)",
+            "description": "Description",
+            "icon": "Icon"
+          }
+        }
+      },
+      "error": {
+        "name_required": "Please enter a name.",
+        "interval_required": "Set a day interval, a km interval, or both.",
+        "invalid_date": "Invalid date."
+      },
+      "abort": {
+        "reconfigure_successful": "Service item updated."
+      }
+    }
+  },
+  "selector": {
+    "fuel_type": {
+      "options": {
+        "petrol": "Petrol",
+        "diesel": "Diesel",
+        "hybrid": "Hybrid (fuel + electric)",
+        "electric": "Electric"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "odometer": {
+        "name": "Odometer"
+      },
+      "fuel_consumption": {
+        "name": "Fuel consumption"
+      },
+      "energy_consumption": {
+        "name": "Energy consumption"
+      },
+      "cost_per_km": {
+        "name": "Cost per km"
+      },
+      "monthly_cost": {
+        "name": "Cost this month"
+      },
+      "service_status": {
+        "state": {
+          "ok": "OK",
+          "due_soon": "Due soon",
+          "overdue": "Overdue",
+          "unknown": "Unknown"
+        }
+      },
+      "service_days_remaining": {},
+      "service_km_remaining": {}
+    },
+    "binary_sensor": {
+      "service_overdue": {}
+    },
+    "button": {
+      "service_complete": {}
+    }
+  },
+  "exceptions": {
+    "not_vehicle_entity": {
+      "message": "{entity_id} is not an entity of the Vehicle integration."
+    },
+    "vehicle_not_loaded": {
+      "message": "The vehicle of {entity_id} is not loaded."
+    },
+    "not_service_entity": {
+      "message": "{entity_id} does not belong to a service item."
+    },
+    "odometer_decrease": {
+      "message": "The new odometer reading is lower than the current one. Enable allow_decrease to override."
+    },
+    "no_fuel_vehicle": {
+      "message": "This vehicle is electric. Use add_charge instead."
+    },
+    "no_electric_vehicle": {
+      "message": "This vehicle cannot be charged. Use add_fuel instead."
+    }
+  },
+  "services": {
+    "set_odometer": {
+      "name": "Set odometer",
+      "description": "Sets the manual odometer reading. Ignored while a linked odometer sensor reports a value.",
+      "fields": {
+        "entity_id": {
+          "name": "Vehicle entity",
+          "description": "Any entity of the vehicle."
+        },
+        "odometer": {
+          "name": "Odometer",
+          "description": "Reading in km."
+        },
+        "allow_decrease": {
+          "name": "Allow decrease",
+          "description": "Allow a reading lower than the current one."
+        }
+      }
+    },
+    "add_fuel": {
+      "name": "Add fuel",
+      "description": "Logs a refuel.",
+      "fields": {
+        "entity_id": {
+          "name": "Vehicle entity",
+          "description": "Any entity of the vehicle."
+        },
+        "liters": {
+          "name": "Liters",
+          "description": "Amount refuelled."
+        },
+        "total_cost": {
+          "name": "Total cost",
+          "description": "Total price paid."
+        },
+        "price_per_liter": {
+          "name": "Price per liter",
+          "description": "Used to compute the total if no total cost is given."
+        },
+        "odometer": {
+          "name": "Odometer",
+          "description": "Odometer reading in km. Needed for consumption statistics."
+        },
+        "full_tank": {
+          "name": "Full tank",
+          "description": "The tank was filled completely. Required for accurate consumption."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Defaults to today."
+        }
+      }
+    },
+    "add_charge": {
+      "name": "Add charge",
+      "description": "Logs a charging session.",
+      "fields": {
+        "entity_id": {
+          "name": "Vehicle entity",
+          "description": "Any entity of the vehicle."
+        },
+        "kwh": {
+          "name": "Energy",
+          "description": "Energy charged in kWh."
+        },
+        "total_cost": {
+          "name": "Total cost",
+          "description": "Total price paid."
+        },
+        "price_per_kwh": {
+          "name": "Price per kWh",
+          "description": "Used to compute the total if no total cost is given."
+        },
+        "odometer": {
+          "name": "Odometer",
+          "description": "Odometer reading in km. Needed for consumption statistics."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Defaults to today."
+        }
+      }
+    },
+    "complete_service": {
+      "name": "Complete service",
+      "description": "Records a service item as done.",
+      "fields": {
+        "entity_id": {
+          "name": "Service item entity",
+          "description": "Any entity of the service item."
+        },
+        "odometer": {
+          "name": "Odometer",
+          "description": "Defaults to the current odometer."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Defaults to today."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "entity": {
+    "sensor": {
+      "odometer": {"default": "mdi:counter"},
+      "fuel_consumption": {"default": "mdi:gas-station"},
+      "energy_consumption": {"default": "mdi:ev-station"},
+      "cost_per_km": {"default": "mdi:cash-fast"},
+      "monthly_cost": {"default": "mdi:cash-multiple"},
+      "service_status": {
+        "default": "mdi:car-wrench",
+        "state": {
+          "ok": "mdi:check-circle-outline",
+          "due_soon": "mdi:clock-alert-outline",
+          "overdue": "mdi:alert-circle",
+          "unknown": "mdi:help-circle-outline"
+        }
+      },
+      "service_days_remaining": {"default": "mdi:calendar-clock"},
+      "service_km_remaining": {"default": "mdi:map-marker-distance"}
+    },
+    "binary_sensor": {"service_overdue": {"default": "mdi:alert-circle"}},
+    "button": {"service_complete": {"default": "mdi:check-circle"}}
+  },
+  "services": {
+    "set_odometer": {"service": "mdi:counter"},
+    "add_fuel": {"service": "mdi:gas-station"},
+    "add_charge": {"service": "mdi:ev-station"},
+    "complete_service": {"service": "mdi:check-circle"}
+  }
+}
