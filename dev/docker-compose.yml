@@ -1,0 +1,13 @@
+# Local Home Assistant test instance for the Vehicle integration.
+#   docker compose -f dev/docker-compose.yml up -d
+#   python3 dev/seed.py            # creates user dev/dev and demo vehicles
+# Then open http://localhost:8123/dashboard-vehicle
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    ports:
+      - "8123:8123"
+    volumes:
+      - ./config:/config
+      - ../custom_components/vehicle:/config/custom_components/vehicle:ro
+    restart: unless-stopped

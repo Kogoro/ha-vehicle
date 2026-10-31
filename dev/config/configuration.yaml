@@ -1,0 +1,25 @@
+default_config:
+
+logger:
+  default: info
+  logs:
+    custom_components.vehicle: debug
+
+# Demo odometer that the electric demo vehicle links to.
+input_number:
+  tesla_odometer:
+    name: Tesla odometer
+    min: 0
+    max: 1000000
+    step: 0.1
+    initial: 12000
+    unit_of_measurement: km
+
+lovelace:
+  dashboards:
+    dashboard-vehicle:
+      mode: yaml
+      title: Vehicle
+      icon: mdi:car
+      show_in_sidebar: true
+      filename: dashboards/vehicle.yaml

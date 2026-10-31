@@ -33,7 +33,9 @@
   },
   "config_subentries": {
     "service_item": {
-      "initial_status": "Add service item",
+      "initiate_flow": {
+        "user": "Add service item"
+      },
       "entry_type": "Service item",
       "step": {
         "user": {

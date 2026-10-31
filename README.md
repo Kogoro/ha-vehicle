@@ -14,6 +14,8 @@ A custom Home Assistant integration for tracking your vehicles: service and main
 - **Events** — `vehicle_service_overdue` and `vehicle_service_completed` for automations.
 - **Lovelace card** — `vehicle-card` with a visual editor. Single values can be shown with any standard HA card.
 
+![Dashboard with two demo vehicles](docs/dashboard.png)
+
 ## Installation
 
 ### HACS (recommended)
@@ -128,6 +130,22 @@ automation:
 The first refresh after a restart only records which items are already overdue, so you are not notified again after every restart.
 
 ## Development
+
+### Local test instance
+
+Needs Docker. Starts Home Assistant with the integration mounted, then creates a user (`dev` / `dev`) and two demo vehicles (a petrol car with fuel log and a linked-odometer EV with charges):
+
+```bash
+docker compose -f dev/docker-compose.yml up -d
+```
+
+```bash
+python3 dev/seed.py
+```
+
+Open <http://localhost:8123/dashboard-vehicle>. After code changes restart with `docker compose -f dev/docker-compose.yml restart`. Reset everything by stopping the container and deleting `dev/config/.storage` plus the other generated files in `dev/config` (everything except `configuration.yaml` and `dashboards/`).
+
+### Tests and lint
 
 ```bash
 pip install pytest-homeassistant-custom-component home-assistant-frontend ruff

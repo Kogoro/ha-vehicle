@@ -139,7 +139,7 @@ class VehicleCard extends HTMLElement {
                 .join("")
             : `<div class="empty">No service items yet. Add them on the integration page.</div>`
         }
-        ${cfg.show_log && logRows ? `<div class="section">Recent refuels</div>${logRows}` : ""}
+        ${cfg.show_log && logRows ? `<div class="section">Recent refuels & charges</div>${logRows}` : ""}
       </ha-card>${this._style()}`;
 
     this.shadowRoot.querySelectorAll(".done").forEach((btn) =>

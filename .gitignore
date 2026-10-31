@@ -17,3 +17,8 @@ build/
 htmlcov/
 .venv/
 ha-config/
+
+# dev instance runtime data
+dev/config/*
+!dev/config/configuration.yaml
+!dev/config/dashboards/

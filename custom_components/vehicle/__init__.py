@@ -33,6 +33,8 @@ _LOGGER = logging.getLogger(__name__)
 FRONTEND_SCRIPT_PATH = f"/{DOMAIN}/vehicle-card.js"
 FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.1.0"
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON]
 
 _ENTITY = {vol.Required("entity_id"): cv.entity_id}
