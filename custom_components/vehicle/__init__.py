@@ -56,7 +56,6 @@ ADD_FUEL_SCHEMA = vol.Schema(
         vol.Optional("total_cost"): _COST,
         vol.Optional("price_per_liter"): _COST,
         vol.Optional("odometer"): _ODOMETER,
-        vol.Optional("full_tank", default=True): cv.boolean,
     }
 )
 ADD_CHARGE_SCHEMA = vol.Schema(
@@ -97,12 +96,21 @@ def _resolve(
     return entry.runtime_data, entity
 
 
-def _cost(total: float | None, unit_price: float | None, amount: float) -> float | None:
-    if total is not None:
-        return round(total, 2)
+def _price_and_cost(
+    total: float | None, unit_price: float | None, amount: float
+) -> tuple[float, float]:
+    """Return (unit price, total cost); the unit price is the primary input.
+
+    If only a total is given the unit price is derived from it, so every
+    entry carries a price that can be trended.
+    """
     if unit_price is not None:
-        return round(unit_price * amount, 2)
-    return None
+        return round(unit_price, 4), round(total if total is not None else unit_price * amount, 2)
+    if total is not None:
+        return round(total / amount, 4), round(total, 2)
+    raise ServiceValidationError(
+        translation_domain=DOMAIN, translation_key="price_required"
+    )
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
@@ -141,17 +149,18 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                 translation_domain=DOMAIN, translation_key="no_fuel_vehicle"
             )
         liters = call.data["liters"]
+        price, cost = _price_and_cost(
+            call.data.get("total_cost"), call.data.get("price_per_liter"), liters
+        )
         store.add_log(
             coordinator.config_entry.entry_id,
             {
                 "kind": KIND_FUEL,
                 "date": (call.data.get("date") or dt_util.now().date()).isoformat(),
                 "amount": liters,
-                "cost": _cost(
-                    call.data.get("total_cost"), call.data.get("price_per_liter"), liters
-                ),
+                "price": price,
+                "cost": cost,
                 "odometer": call.data.get("odometer"),
-                "full": call.data["full_tank"],
             },
         )
         await coordinator.async_refresh()
@@ -163,17 +172,18 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
                 translation_domain=DOMAIN, translation_key="no_electric_vehicle"
             )
         kwh = call.data["kwh"]
+        price, cost = _price_and_cost(
+            call.data.get("total_cost"), call.data.get("price_per_kwh"), kwh
+        )
         store.add_log(
             coordinator.config_entry.entry_id,
             {
                 "kind": KIND_CHARGE,
                 "date": (call.data.get("date") or dt_util.now().date()).isoformat(),
                 "amount": kwh,
-                "cost": _cost(
-                    call.data.get("total_cost"), call.data.get("price_per_kwh"), kwh
-                ),
+                "price": price,
+                "cost": cost,
                 "odometer": call.data.get("odometer"),
-                "full": True,
             },
         )
         await coordinator.async_refresh()

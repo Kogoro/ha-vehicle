@@ -74,6 +74,8 @@ class VehicleData:
     fuel_consumption_latest: float | None = None
     energy_consumption: float | None = None
     energy_consumption_latest: float | None = None
+    fuel_price: float | None = None
+    energy_price: float | None = None
     cost_per_km: float | None = None
     monthly_cost: float = 0.0
 
@@ -228,6 +230,8 @@ class VehicleCoordinator(DataUpdateCoordinator[VehicleData]):
             fuel_consumption_latest=fuel_latest,
             energy_consumption=energy_avg,
             energy_consumption_latest=energy_latest,
+            fuel_price=calc.latest_price(log, KIND_FUEL),
+            energy_price=calc.latest_price(log, KIND_CHARGE),
             cost_per_km=calc.cost_per_km(log),
             monthly_cost=calc.monthly_cost(log, today),
         )

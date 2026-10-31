@@ -116,19 +116,28 @@ async def test_fuel_log_and_stats(hass: HomeAssistant) -> None:
     await _setup(hass)
     entity = _entity(hass, "sensor", "_odometer")
     today = dt_util.now().date()
-    for odo, liters, cost, full in ((1000, 40, 60, True), (1500, 20, 30, False), (2000, 15, 23, True)):
+    for odo, liters, price in ((1000, 40, 1.5), (1500, 20, 1.5), (2000, 15, 1.6)):
         await hass.services.async_call(
             DOMAIN,
             "add_fuel",
-            {"entity_id": entity, "liters": liters, "total_cost": cost, "odometer": odo, "full_tank": full},
+            {"entity_id": entity, "liters": liters, "price_per_liter": price, "odometer": odo},
             blocking=True,
         )
     assert hass.states.get(entity).state == "2000.0"
     assert float(hass.states.get(_entity(hass, "sensor", "_fuel_consumption")).state) == 3.5
-    assert float(hass.states.get(_entity(hass, "sensor", "_cost_per_km")).state) == pytest.approx(0.053, abs=1e-3)
-    assert float(hass.states.get(_entity(hass, "sensor", "_monthly_cost")).state) == 113.0
-    assert len(hass.states.get(entity).attributes["recent_log"]) == 3
+    assert float(hass.states.get(_entity(hass, "sensor", "_cost_per_km")).state) == pytest.approx(0.0532, abs=1e-3)
+    assert float(hass.states.get(_entity(hass, "sensor", "_monthly_cost")).state) == 114.0
+    assert float(hass.states.get(_entity(hass, "sensor", "_fuel_price")).state) == 1.6
+    # total_cost alone derives the price
+    await hass.services.async_call(
+        DOMAIN, "add_fuel", {"entity_id": entity, "liters": 10, "total_cost": 17.0}, blocking=True
+    )
+    assert float(hass.states.get(_entity(hass, "sensor", "_fuel_price")).state) == 1.7
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "add_fuel", {"entity_id": entity, "liters": 10}, blocking=True)
+    assert len(hass.states.get(entity).attributes["recent_log"]) == 4
     assert today.isoformat() == hass.states.get(entity).attributes["recent_log"][0]["date"]
+    assert "full" not in hass.states.get(entity).attributes["recent_log"][0]
 
     with pytest.raises(StopIteration):
         _entity(hass, "sensor", "_energy_consumption")

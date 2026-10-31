@@ -55,10 +55,6 @@ add_fuel:
           step: 0.1
           mode: box
           unit_of_measurement: km
-    full_tank:
-      default: true
-      selector:
-        boolean:
     date:
       selector:
         date:

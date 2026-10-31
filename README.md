@@ -10,7 +10,7 @@ A custom Home Assistant integration for tracking your vehicles: service and main
 - **Multiple vehicles** — one config entry (and one device) per vehicle: petrol, diesel, hybrid or electric.
 - **Service & maintenance** — items such as oil change, tires or inspection with a day interval, a km interval, or both. An item is due when **either** limit is reached.
 - **Mileage** — link an existing odometer sensor (miles are converted to km) or enter readings manually. Fuel/charge logs and completed services raise the manual odometer automatically.
-- **Fuel & charging log** — log refuels (liters) and charges (kWh) with cost and odometer. Get consumption (L/100 km, kWh/100 km), cost per km and cost this month.
+- **Fuel & charging log** — log refuels (liters) and charges (kWh) with cost and odometer. Prices per liter / kWh are recorded with every entry for trends. Get consumption (L/100 km, kWh/100 km), cost per km and cost this month.
 - **Events** — `vehicle_service_overdue` and `vehicle_service_completed` for automations.
 - **Lovelace card** — `vehicle-card` with a visual editor. Single values can be shown with any standard HA card.
 
@@ -53,8 +53,10 @@ Per vehicle:
 | Entity | Description |
 |--------|-------------|
 | `sensor.<vehicle>_odometer` | Odometer in km. Attributes: `source` (`sensor`/`manual`), `recent_log` |
-| `sensor.<vehicle>_fuel_consumption` | Average L/100 km (not for electric). Attribute `latest` |
-| `sensor.<vehicle>_energy_consumption` | Average kWh/100 km (hybrid/electric). Attribute `latest` |
+| `sensor.<vehicle>_fuel_price` | Price per liter of the latest refuel (not for electric); history/trends via HA statistics |
+| `sensor.<vehicle>_energy_price` | Price per kWh of the latest charge (hybrid/electric) |
+| `sensor.<vehicle>_fuel_consumption` | Average L/100 km (not for electric). Attribute `recent` |
+| `sensor.<vehicle>_energy_consumption` | Average kWh/100 km (hybrid/electric). Attribute `recent` |
 | `sensor.<vehicle>_cost_per_km` | Fuel + charge cost per km |
 | `sensor.<vehicle>_cost_this_month` | Fuel + charge cost in the current month |
 
@@ -68,15 +70,15 @@ Per service item:
 | `binary_sensor.<item>_overdue` | `on` when overdue |
 | `button.<item>_complete` | Records the service as done today at the current odometer |
 
-Statistics notes: consumption uses the *full tank to full tank* method — flag partial refuels with `full_tank: false`. Charges always count as full. Entries need an `odometer` value to be included in consumption and cost-per-km.
+Statistics notes: no full tank or full battery is assumed. Consumption over a span of entries is everything added after the first entry divided by the distance since it, so it becomes more accurate with more entries (`recent` covers the last 3 intervals). Entries need an `odometer` value to be included in consumption and cost-per-km.
 
 ## Services
 
 | Service | Description |
 |---------|-------------|
 | `vehicle.set_odometer` | Set the manual odometer. Lower values are rejected unless `allow_decrease: true` |
-| `vehicle.add_fuel` | Log a refuel: `liters`, `total_cost` or `price_per_liter`, `odometer`, `full_tank`, `date` |
-| `vehicle.add_charge` | Log a charge: `kwh`, `total_cost` or `price_per_kwh`, `odometer`, `date` |
+| `vehicle.add_fuel` | Log a refuel: `liters`, `price_per_liter` (or `total_cost`, from which the price is derived), `odometer`, `date` |
+| `vehicle.add_charge` | Log a charge: `kwh`, `price_per_kwh` (or `total_cost`), `odometer`, `date` |
 | `vehicle.complete_service` | Record a service item as done: `odometer`, `date` |
 
 All services take an `entity_id`; any entity of the vehicle (or service item for `complete_service`) works.
@@ -86,7 +88,7 @@ action: vehicle.add_fuel
 data:
   entity_id: sensor.golf_odometer
   liters: 42.3
-  total_cost: 71.20
+  price_per_liter: 1.683
   odometer: 45210
 ```
 

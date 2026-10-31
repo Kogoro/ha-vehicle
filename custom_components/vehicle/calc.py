@@ -81,32 +81,40 @@ def _with_odometer(entries: list[dict[str, Any]], kind: str | None = None) -> li
     return result
 
 
+LATEST_WINDOW = 3
+
+
 def consumption(
     entries: list[dict[str, Any]], kind: str
 ) -> tuple[float | None, float | None]:
-    """Return (average, latest) consumption per 100 km for a log kind.
+    """Return (average, recent) consumption per 100 km for a log kind.
 
-    Uses the "full tank to full tank" method: only entries flagged ``full``
-    delimit a segment, and everything added in between counts towards it.
-    Charge entries are always treated as full.
+    No "full tank" is assumed. Over a span of entries the amount consumed is
+    approximated by everything added *after* the first entry (the first entry
+    only marks the starting odometer). The average covers all entries, the
+    recent value the last ``LATEST_WINDOW`` intervals. It converges to the
+    true value as more entries are logged.
     """
     rows = _with_odometer(entries, kind)
-    anchors = [e for e in rows if e.get("full", True)]
-    if len(anchors) < 2:
+    if len(rows) < 2:
         return None, None
 
-    def segment(first: dict[str, Any], last: dict[str, Any]) -> float | None:
-        distance = last["odometer"] - first["odometer"]
+    def span(window: list[dict[str, Any]]) -> float | None:
+        distance = window[-1]["odometer"] - window[0]["odometer"]
         if distance <= 0:
             return None
-        amount = sum(
-            e["amount"] for e in rows if first["odometer"] < e["odometer"] <= last["odometer"]
-        )
+        amount = sum(e["amount"] for e in window[1:])
         return round(amount / distance * 100, 2)
 
-    average = segment(anchors[0], anchors[-1])
-    latest = segment(anchors[-2], anchors[-1])
-    return average, latest
+    return span(rows), span(rows[-(LATEST_WINDOW + 1) :])
+
+
+def latest_price(entries: list[dict[str, Any]], kind: str) -> float | None:
+    """Return the unit price (per liter / per kWh) of the latest entry with one."""
+    for entry in reversed(entries):
+        if entry["kind"] == kind and entry.get("price") is not None:
+            return entry["price"]
+    return None
 
 
 def cost_per_km(entries: list[dict[str, Any]]) -> float | None:

@@ -100,6 +100,8 @@ class VehicleCard extends HTMLElement {
     const stats = [];
     if (v.fuel_consumption) stats.push(stat("Fuel", `${this._fmt(v.fuel_consumption.state, 1)} <small>L/100km</small>`));
     if (v.energy_consumption) stats.push(stat("Energy", `${this._fmt(v.energy_consumption.state, 1)} <small>kWh/100km</small>`));
+    if (v.fuel_price) stats.push(stat("Fuel price", `${this._fmt(v.fuel_price.state, 3)} <small>${esc(currency)}/L</small>`));
+    if (v.energy_price) stats.push(stat("Energy price", `${this._fmt(v.energy_price.state, 3)} <small>${esc(currency)}/kWh</small>`));
     if (v.cost_per_km) stats.push(stat("Cost/km", `${this._fmt(v.cost_per_km.state, 3)} <small>${esc(currency)}</small>`));
     if (v.monthly_cost) stats.push(stat("This month", `${this._fmt(v.monthly_cost.state, 2)} <small>${esc(currency)}</small>`));
 
@@ -108,9 +110,10 @@ class VehicleCard extends HTMLElement {
       .map((e) => {
         const unit = e.kind === "charge" ? "kWh" : "L";
         const cost = e.cost != null ? `${this._fmt(e.cost, 2)} ${esc(currency)}` : "";
+        const price = e.price != null ? `${this._fmt(e.price, 3)}/${e.kind === "charge" ? "kWh" : "L"}` : "";
         const km = e.odometer != null ? `${this._fmt(e.odometer)} km` : "";
         return `<div class="log"><ha-icon icon="${e.kind === "charge" ? "mdi:ev-station" : "mdi:gas-station"}"></ha-icon>
-          <span class="grow">${esc(e.date)} · ${this._fmt(e.amount, 1)} ${unit}</span><span class="muted">${[cost, km].filter(Boolean).join(" · ")}</span></div>`;
+          <span class="grow">${esc(e.date)} · ${this._fmt(e.amount, 1)} ${unit}</span><span class="muted">${[price, cost, km].filter(Boolean).join(" · ")}</span></div>`;
       })
       .join("");
 

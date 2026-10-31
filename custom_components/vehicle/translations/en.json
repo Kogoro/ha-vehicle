@@ -109,7 +109,13 @@
         }
       },
       "service_days_remaining": {},
-      "service_km_remaining": {}
+      "service_km_remaining": {},
+      "fuel_price": {
+        "name": "Fuel price"
+      },
+      "energy_price": {
+        "name": "Energy price"
+      }
     },
     "binary_sensor": {
       "service_overdue": {}
@@ -136,6 +142,9 @@
     },
     "no_electric_vehicle": {
       "message": "This vehicle cannot be charged. Use add_fuel instead."
+    },
+    "price_required": {
+      "message": "Provide a price per unit or a total cost."
     }
   },
   "services": {
@@ -171,19 +180,15 @@
         },
         "total_cost": {
           "name": "Total cost",
-          "description": "Total price paid."
+          "description": "Total paid. If no price per liter is given, the price is derived from this."
         },
         "price_per_liter": {
           "name": "Price per liter",
-          "description": "Used to compute the total if no total cost is given."
+          "description": "Unit price. Recorded for price trends; the total is derived from it if no total cost is given."
         },
         "odometer": {
           "name": "Odometer",
           "description": "Odometer reading in km. Needed for consumption statistics."
-        },
-        "full_tank": {
-          "name": "Full tank",
-          "description": "The tank was filled completely. Required for accurate consumption."
         },
         "date": {
           "name": "Date",
@@ -205,11 +210,11 @@
         },
         "total_cost": {
           "name": "Total cost",
-          "description": "Total price paid."
+          "description": "Total paid. If no price per kWh is given, the price is derived from this."
         },
         "price_per_kwh": {
           "name": "Price per kWh",
-          "description": "Used to compute the total if no total cost is given."
+          "description": "Unit price. Recorded for price trends; the total is derived from it if no total cost is given."
         },
         "odometer": {
           "name": "Odometer",

@@ -54,7 +54,7 @@ VEHICLE_SENSORS: tuple[VehicleSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
         value_fn=lambda d: d.fuel_consumption,
-        attrs_fn=lambda d: {"latest": d.fuel_consumption_latest},
+        attrs_fn=lambda d: {"recent": d.fuel_consumption_latest},
         applies_fn=lambda c: c.fuel_type.uses_fuel,
     ),
     VehicleSensorDescription(
@@ -64,7 +64,23 @@ VEHICLE_SENSORS: tuple[VehicleSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
         value_fn=lambda d: d.energy_consumption,
-        attrs_fn=lambda d: {"latest": d.energy_consumption_latest},
+        attrs_fn=lambda d: {"recent": d.energy_consumption_latest},
+        applies_fn=lambda c: c.fuel_type.uses_energy,
+    ),
+    VehicleSensorDescription(
+        key="fuel_price",
+        translation_key="fuel_price",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=3,
+        value_fn=lambda d: d.fuel_price,
+        applies_fn=lambda c: c.fuel_type.uses_fuel,
+    ),
+    VehicleSensorDescription(
+        key="energy_price",
+        translation_key="energy_price",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=3,
+        value_fn=lambda d: d.energy_price,
         applies_fn=lambda c: c.fuel_type.uses_energy,
     ),
     VehicleSensorDescription(
@@ -126,6 +142,10 @@ class VehicleSensor(VehicleEntity, SensorEntity):
         self.entity_description = description
         if description.key == "monthly_cost":
             self._attr_native_unit_of_measurement = currency
+        elif description.key == "fuel_price":
+            self._attr_native_unit_of_measurement = f"{currency}/L"
+        elif description.key == "energy_price":
+            self._attr_native_unit_of_measurement = f"{currency}/kWh"
         elif description.key == "cost_per_km":
             self._attr_native_unit_of_measurement = f"{currency}/km"
 
