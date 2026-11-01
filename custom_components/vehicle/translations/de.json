@@ -1,0 +1,458 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Fahrzeug hinzufügen",
+        "description": "Verknüpfe einen vorhandenen Kilometerzähler-Sensor, um den Kilometerstand automatisch zu erfassen. Ohne Sensor trägst du den Stand manuell oder über Tankeinträge ein.",
+        "data": {
+          "name": "Name",
+          "fuel_type": "Antriebsart",
+          "odometer_entity": "Kilometerzähler-Entität (optional)",
+          "warn_days": "Warnen, wenn fällig innerhalb von (Tagen)",
+          "warn_km": "Warnen, wenn fällig innerhalb von (km)"
+        }
+      },
+      "reconfigure": {
+        "title": "Fahrzeugeinstellungen",
+        "data": {
+          "name": "Name",
+          "fuel_type": "Antriebsart",
+          "odometer_entity": "Kilometerzähler-Entität (optional)",
+          "warn_days": "Warnen, wenn fällig innerhalb von (Tagen)",
+          "warn_km": "Warnen, wenn fällig innerhalb von (km)"
+        }
+      }
+    },
+    "error": {
+      "name_required": "Bitte gib einen Namen ein."
+    },
+    "abort": {
+      "already_configured": "Ein Fahrzeug mit diesem Namen existiert bereits.",
+      "reconfigure_successful": "Fahrzeug aktualisiert."
+    }
+  },
+  "config_subentries": {
+    "service_item": {
+      "initiate_flow": {
+        "user": "Service-Eintrag hinzufügen"
+      },
+      "entry_type": "Service-Eintrag",
+      "step": {
+        "user": {
+          "title": "Service-Eintrag hinzufügen",
+          "description": "Lege ein Tagesintervall, ein Kilometerintervall oder beides fest. Der Eintrag ist fällig, sobald eines davon erreicht ist.",
+          "data": {
+            "name": "Name",
+            "interval_days": "Wiederholen alle (Tage)",
+            "interval_km": "Wiederholen alle (km)",
+            "last_service_date": "Zuletzt erledigt am",
+            "last_service_odometer": "Kilometerstand beim letzten Service (km)",
+            "description": "Beschreibung",
+            "icon": "Symbol"
+          }
+        },
+        "reconfigure": {
+          "title": "Service-Eintrag bearbeiten",
+          "description": "Lege ein Tagesintervall, ein Kilometerintervall oder beides fest. Der Eintrag ist fällig, sobald eines davon erreicht ist.",
+          "data": {
+            "name": "Name",
+            "interval_days": "Wiederholen alle (Tage)",
+            "interval_km": "Wiederholen alle (km)",
+            "last_service_date": "Zuletzt erledigt am",
+            "last_service_odometer": "Kilometerstand beim letzten Service (km)",
+            "description": "Beschreibung",
+            "icon": "Symbol"
+          }
+        }
+      },
+      "error": {
+        "name_required": "Bitte gib einen Namen ein.",
+        "interval_required": "Lege ein Tagesintervall, ein Kilometerintervall oder beides fest.",
+        "invalid_date": "Ungültiges Datum."
+      },
+      "abort": {
+        "reconfigure_successful": "Service-Eintrag aktualisiert."
+      }
+    },
+    "import_items": {
+      "initiate_flow": {
+        "user": "Häufige Service-Einträge importieren"
+      },
+      "entry_type": "Aus Katalog importieren",
+      "step": {
+        "user": {
+          "title": "Kategorien auswählen",
+          "description": "Wähle, welche Arten von Service-Einträgen du durchsuchen möchtest. Die einzelnen Einträge wählst du im nächsten Schritt. Es werden nur Einträge angeboten, die zur Antriebsart dieses Fahrzeugs passen.",
+          "data": {
+            "categories": "Kategorien"
+          }
+        },
+        "select_items": {
+          "title": "Service-Einträge auswählen",
+          "description": "Wähle die Einträge, die hinzugefügt werden sollen, mit ihrem üblichen Intervall. Mit • exists markierte Einträge gibt es bereits; ein erneuter Import erzeugt Duplikate.",
+          "data": {
+            "items": "Service-Einträge"
+          }
+        },
+        "configure": {
+          "title": "Wann wurden sie zuletzt erledigt?",
+          "description": "Dient als Startpunkt für die Fälligkeit aller importierten Einträge. Lass das Feld leer, wenn du es nicht weißt; die Kilometerzählung beginnt dann beim aktuellen Stand. Du kannst jeden Eintrag danach bearbeiten.",
+          "data": {
+            "last_service_date": "Zuletzt erledigt am"
+          }
+        }
+      },
+      "error": {
+        "no_categories_selected": "Bitte wähle mindestens eine Kategorie.",
+        "no_items_selected": "Bitte wähle mindestens einen Eintrag."
+      },
+      "abort": {
+        "import_success": "{count} Service-Einträge importiert.",
+        "catalog_empty": "Für dieses Fahrzeug gibt es keine Katalogeinträge.",
+        "no_items_found": "In den gewählten Kategorien wurden keine Einträge gefunden."
+      }
+    }
+  },
+  "selector": {
+    "fuel_type": {
+      "options": {
+        "petrol": "Benzin",
+        "diesel": "Diesel",
+        "hybrid": "Hybrid (Kraftstoff + Strom)",
+        "electric": "Elektro"
+      }
+    },
+    "scan_kind": {
+      "options": {
+        "fuel": "Tankbeleg",
+        "charge": "Ladebeleg",
+        "service": "Werkstattrechnung"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "odometer": {
+        "name": "Kilometerstand"
+      },
+      "fuel_consumption": {
+        "name": "Kraftstoffverbrauch"
+      },
+      "energy_consumption": {
+        "name": "Energieverbrauch"
+      },
+      "cost_per_km": {
+        "name": "Kosten pro km"
+      },
+      "monthly_cost": {
+        "name": "Kraftstoff- und Ladekosten diesen Monat"
+      },
+      "service_status": {
+        "state": {
+          "ok": "OK",
+          "due_soon": "Bald fällig",
+          "overdue": "Überfällig",
+          "unknown": "Unbekannt"
+        }
+      },
+      "service_days_remaining": {},
+      "service_km_remaining": {},
+      "fuel_price": {
+        "name": "Kraftstoffpreis"
+      },
+      "energy_price": {
+        "name": "Strompreis"
+      },
+      "monthly_service_cost": {
+        "name": "Servicekosten diesen Monat"
+      }
+    },
+    "binary_sensor": {
+      "service_overdue": {}
+    },
+    "button": {
+      "service_complete": {}
+    }
+  },
+  "exceptions": {
+    "not_vehicle_entity": {
+      "message": "{entity_id} ist keine Entität der Integration Vehicle."
+    },
+    "vehicle_not_loaded": {
+      "message": "Das Fahrzeug von {entity_id} ist nicht geladen."
+    },
+    "not_service_entity": {
+      "message": "{entity_id} gehört zu keinem Service-Eintrag."
+    },
+    "odometer_decrease": {
+      "message": "Der neue Kilometerstand ist niedriger als der aktuelle. Aktiviere allow_decrease, um ihn trotzdem zu setzen."
+    },
+    "no_fuel_vehicle": {
+      "message": "Dieses Fahrzeug ist elektrisch. Verwende stattdessen add_charge."
+    },
+    "no_electric_vehicle": {
+      "message": "Dieses Fahrzeug kann nicht geladen werden. Verwende stattdessen add_fuel."
+    },
+    "price_required": {
+      "message": "Gib einen Preis pro Einheit oder die Gesamtkosten an."
+    },
+    "receipt_not_found": {
+      "message": "Der Beleg {receipt} existiert nicht."
+    },
+    "receipt_too_large": {
+      "message": "Die Datei ist größer als 15 MB."
+    },
+    "receipt_unsupported": {
+      "message": "Es werden nur JPEG-, PNG-, WebP- und PDF-Dateien unterstützt."
+    },
+    "receipt_upload_missing": {
+      "message": "Die hochgeladene Datei wurde nicht gefunden. Lade sie erneut hoch."
+    },
+    "ai_task_unavailable": {
+      "message": "Es ist keine KI-Aufgabe verfügbar. Richte in Home Assistant einen KI-Anbieter mit Unterstützung für KI-Aufgaben ein."
+    },
+    "scan_failed": {
+      "message": "Die KI-Aufgabe ist fehlgeschlagen: {error}"
+    },
+    "attach_target_missing": {
+      "message": "Gib eine Eintrags-ID an oder verwende eine Entität eines Service-Eintrags."
+    },
+    "attach_target_not_found": {
+      "message": "Der Eintrag bzw. die erledigte Wartung existiert nicht."
+    }
+  },
+  "services": {
+    "set_odometer": {
+      "name": "Kilometerstand setzen",
+      "description": "Setzt den manuellen Kilometerstand. Wird ignoriert, solange ein verknüpfter Kilometerzähler-Sensor einen Wert liefert.",
+      "fields": {
+        "entity_id": {
+          "name": "Fahrzeug-Entität",
+          "description": "Eine beliebige Entität des Fahrzeugs."
+        },
+        "odometer": {
+          "name": "Kilometerstand",
+          "description": "Stand in km."
+        },
+        "allow_decrease": {
+          "name": "Verringern erlauben",
+          "description": "Erlaubt einen Stand, der niedriger ist als der aktuelle."
+        }
+      }
+    },
+    "add_fuel": {
+      "name": "Tanken eintragen",
+      "description": "Trägt einen Tankvorgang ein.",
+      "fields": {
+        "entity_id": {
+          "name": "Fahrzeug-Entität",
+          "description": "Eine beliebige Entität des Fahrzeugs."
+        },
+        "liters": {
+          "name": "Liter",
+          "description": "Getankte Menge."
+        },
+        "total_cost": {
+          "name": "Gesamtkosten",
+          "description": "Bezahlter Gesamtbetrag. Ohne Preis pro Liter wird der Preis daraus berechnet."
+        },
+        "price_per_liter": {
+          "name": "Preis pro Liter",
+          "description": "Einzelpreis. Wird für Preisverläufe gespeichert; die Summe wird daraus berechnet, wenn keine Gesamtkosten angegeben sind."
+        },
+        "odometer": {
+          "name": "Kilometerstand",
+          "description": "Kilometerstand in km. Wird für die Verbrauchsstatistik benötigt."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "Standard ist heute."
+        },
+        "receipt": {
+          "name": "Beleg",
+          "description": "Beleg-ID aus upload_receipt."
+        }
+      }
+    },
+    "add_charge": {
+      "name": "Laden eintragen",
+      "description": "Trägt einen Ladevorgang ein.",
+      "fields": {
+        "entity_id": {
+          "name": "Fahrzeug-Entität",
+          "description": "Eine beliebige Entität des Fahrzeugs."
+        },
+        "kwh": {
+          "name": "Energie",
+          "description": "Geladene Energie in kWh."
+        },
+        "total_cost": {
+          "name": "Gesamtkosten",
+          "description": "Bezahlter Gesamtbetrag. Ohne Preis pro kWh wird der Preis daraus berechnet."
+        },
+        "price_per_kwh": {
+          "name": "Preis pro kWh",
+          "description": "Einzelpreis. Wird für Preisverläufe gespeichert; die Summe wird daraus berechnet, wenn keine Gesamtkosten angegeben sind."
+        },
+        "odometer": {
+          "name": "Kilometerstand",
+          "description": "Kilometerstand in km. Wird für die Verbrauchsstatistik benötigt."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "Standard ist heute."
+        },
+        "receipt": {
+          "name": "Beleg",
+          "description": "Beleg-ID aus upload_receipt."
+        }
+      }
+    },
+    "complete_service": {
+      "name": "Service erledigen",
+      "description": "Markiert einen Service-Eintrag als erledigt.",
+      "fields": {
+        "entity_id": {
+          "name": "Service-Entität",
+          "description": "Eine beliebige Entität des Service-Eintrags."
+        },
+        "odometer": {
+          "name": "Kilometerstand",
+          "description": "Standard ist der aktuelle Kilometerstand."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "Standard ist heute."
+        },
+        "receipt": {
+          "name": "Beleg",
+          "description": "Beleg-ID aus upload_receipt."
+        },
+        "cost": {
+          "name": "Kosten",
+          "description": "Rechnungsbetrag."
+        }
+      }
+    },
+    "upload_receipt": {
+      "name": "Beleg hochladen",
+      "description": "Speichert eine über Home Assistant hochgeladene Datei (Foto oder PDF) und gibt eine Beleg-ID zurück, die du an einen Eintrag anhängen kannst. Nicht angehängte Belege werden nach 24 Stunden gelöscht.",
+      "fields": {
+        "file": {
+          "name": "Datei",
+          "description": "Foto oder PDF des Belegs."
+        }
+      }
+    },
+    "scan_receipt": {
+      "name": "Beleg scannen",
+      "description": "Liest Datum, Beträge und Preise mit einer KI-Aufgaben-Entität aus einem Beleg. Gibt die Werte zur Bestätigung zurück; es wird nichts gespeichert.",
+      "fields": {
+        "receipt": {
+          "name": "Beleg",
+          "description": "Beleg-ID aus upload_receipt."
+        },
+        "kind": {
+          "name": "Art",
+          "description": "Um was für einen Beleg es sich handelt."
+        },
+        "ai_task_entity_id": {
+          "name": "KI-Aufgaben-Entität",
+          "description": "Standard ist die bevorzugte KI-Aufgaben-Entität."
+        }
+      }
+    },
+    "attach_receipt": {
+      "name": "Beleg anhängen",
+      "description": "Hängt einen Beleg an einen vorhandenen Eintrag oder an die letzte erledigte Wartung eines Service-Eintrags.",
+      "fields": {
+        "entity_id": {
+          "name": "Entität",
+          "description": "Eine beliebige Entität des Fahrzeugs, oder des Service-Eintrags, wenn keine Eintrags-ID angegeben ist."
+        },
+        "receipt": {
+          "name": "Beleg",
+          "description": "Beleg-ID aus upload_receipt."
+        },
+        "log_entry_id": {
+          "name": "Eintrags-ID",
+          "description": "ID aus dem Attribut activity des Kilometerstand-Sensors."
+        }
+      }
+    },
+    "delete_log_entry": {
+      "name": "Eintrag löschen",
+      "description": "Löscht einen Tank- oder Ladeeintrag samt Beleg. delete_activity macht dasselbe und kann auch Services löschen.",
+      "fields": {
+        "entity_id": {
+          "name": "Fahrzeug-Entität",
+          "description": "Eine beliebige Entität des Fahrzeugs."
+        },
+        "log_entry_id": {
+          "name": "Eintrags-ID",
+          "description": "ID aus dem Attribut activity des Kilometerstand-Sensors."
+        }
+      }
+    },
+    "update_activity": {
+      "name": "Aktivität ändern",
+      "description": "Ändert einen vergangenen Tank- oder Ladevorgang oder einen erledigten Service. Nur die angegebenen Felder werden geändert. Verwende die ID aus dem Attribut activity des Kilometerstand-Sensors.",
+      "fields": {
+        "entity_id": {
+          "name": "Fahrzeug-Entität",
+          "description": "Eine beliebige Entität des Fahrzeugs."
+        },
+        "activity_id": {
+          "name": "Aktivitäts-ID",
+          "description": "ID aus dem Attribut activity des Kilometerstand-Sensors."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "Neues Datum."
+        },
+        "amount": {
+          "name": "Menge",
+          "description": "Liter oder kWh (Tanken und Laden). Die Kosten werden aus dem Preis neu berechnet."
+        },
+        "price": {
+          "name": "Preis pro Einheit",
+          "description": "Preis pro Liter oder kWh (Tanken und Laden). Die Kosten werden neu berechnet, sofern keine Gesamtkosten angegeben sind."
+        },
+        "total_cost": {
+          "name": "Gesamtkosten",
+          "description": "Bezahlter Gesamtbetrag (Tanken und Laden). Ohne Preis wird der Preis daraus berechnet."
+        },
+        "cost": {
+          "name": "Kosten",
+          "description": "Rechnungsbetrag (erledigter Service)."
+        },
+        "odometer": {
+          "name": "Kilometerstand",
+          "description": "Kilometerstand in km."
+        },
+        "receipt": {
+          "name": "Beleg",
+          "description": "Beleg-ID (aus upload_receipt), die angehängt werden soll. Ein früherer Beleg wird gelöscht."
+        },
+        "remove_receipt": {
+          "name": "Beleg entfernen",
+          "description": "Löst den Beleg und löscht ihn."
+        }
+      }
+    },
+    "delete_activity": {
+      "name": "Aktivität löschen",
+      "description": "Löscht einen vergangenen Tank- oder Ladevorgang oder einen erledigten Service samt Beleg.",
+      "fields": {
+        "entity_id": {
+          "name": "Fahrzeug-Entität",
+          "description": "Eine beliebige Entität des Fahrzeugs."
+        },
+        "activity_id": {
+          "name": "Aktivitäts-ID",
+          "description": "ID aus dem Attribut activity des Kilometerstand-Sensors."
+        }
+      }
+    }
+  }
+}

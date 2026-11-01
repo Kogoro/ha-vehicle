@@ -27,6 +27,10 @@ class VehicleStore:
                 "vehicles": raw.get("vehicles", {}),
                 "service": raw.get("service", {}),
             }
+            # completions saved by 0.1.0 have no id yet
+            for record in self._data["service"].values():
+                for completion in record["history"]:
+                    completion.setdefault("id", uuid.uuid4().hex[:8])
 
     @callback
     def _save(self) -> None:
@@ -125,13 +129,66 @@ class VehicleStore:
         receipt: str | None = None,
     ) -> None:
         """Record a completed service."""
-        record: dict[str, Any] = {"date": date, "odometer": odometer}
+        record: dict[str, Any] = {
+            "id": uuid.uuid4().hex[:8],
+            "date": date,
+            "odometer": odometer,
+        }
         if cost is not None:
             record["cost"] = cost
         if receipt:
             record["receipt"] = receipt
         self.service(subentry_id)["history"].append(record)
         self._save()
+
+    @callback
+    def update_service(
+        self, subentry_id: str, completion_id: str, changes: dict[str, Any]
+    ) -> tuple[bool, str | None]:
+        """Change a completion. ``None`` values remove a field. Returns (found, old receipt)."""
+        history = self.service(subentry_id)["history"]
+        for completion in history:
+            if completion["id"] == completion_id:
+                old = completion.get("receipt")
+                for key, value in changes.items():
+                    if value is None:
+                        completion.pop(key, None)
+                    else:
+                        completion[key] = value
+                history.sort(key=lambda c: c["date"])
+                self._save()
+                return True, old
+        return False, None
+
+    @callback
+    def delete_service(self, subentry_id: str, completion_id: str) -> dict[str, Any] | None:
+        """Delete a completion and return it."""
+        history = self.service(subentry_id)["history"]
+        for completion in history:
+            if completion["id"] == completion_id:
+                history.remove(completion)
+                self._save()
+                return completion
+        return None
+
+    @callback
+    def update_log(
+        self, entry_id: str, log_id: str, changes: dict[str, Any]
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        """Change a fuel/charge entry. Returns (updated entry or None, old receipt)."""
+        log = self.vehicle(entry_id)["log"]
+        for entry in log:
+            if entry["id"] == log_id:
+                old = entry.get("receipt")
+                for key, value in changes.items():
+                    if value is None:
+                        entry.pop(key, None)
+                    else:
+                        entry[key] = value
+                log.sort(key=lambda e: e["date"])
+                self._save()
+                return entry, old
+        return None, None
 
     @callback
     def attach_to_service(self, subentry_id: str, receipt: str) -> str | None:

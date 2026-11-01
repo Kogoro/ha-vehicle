@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
 import logging
 import shutil
 from pathlib import Path
@@ -51,7 +52,7 @@ from .store import VehicleStore
 _LOGGER = logging.getLogger(__name__)
 
 FRONTEND_SCRIPT_PATH = f"/{DOMAIN}/vehicle-cards.js"
-FRONTEND_SCRIPT_URL = f"{FRONTEND_SCRIPT_PATH}?v=0.1.0"
+FRONTEND_SCRIPT_FILE = Path(__file__).parent / "www" / "vehicle-cards.js"
 BLUEPRINTS_DIR = Path(__file__).parent / "blueprints"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -120,6 +121,21 @@ ATTACH_RECEIPT_SCHEMA = vol.Schema(
     }
 )
 DELETE_LOG_ENTRY_SCHEMA = vol.Schema({**_ENTITY, vol.Required("log_entry_id"): cv.string})
+DELETE_ACTIVITY_SCHEMA = vol.Schema({**_ENTITY, vol.Required("activity_id"): cv.string})
+UPDATE_ACTIVITY_SCHEMA = vol.Schema(
+    {
+        **_ENTITY,
+        vol.Required("activity_id"): cv.string,
+        vol.Optional("date"): cv.date,
+        vol.Optional("amount"): _POSITIVE,
+        vol.Optional("price"): _COST,
+        vol.Optional("total_cost"): _COST,
+        vol.Optional("cost"): _COST,
+        vol.Optional("odometer"): _ODOMETER,
+        vol.Optional("receipt"): vol.All(cv.string, vol.Match(RECEIPT_RE)),
+        vol.Optional("remove_receipt", default=False): cv.boolean,
+    }
+)
 
 # What the AI task should extract from a receipt or invoice.
 _DATE = {"description": "Date of the receipt", "selector": {"date": {}}}
@@ -250,12 +266,16 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         [
             StaticPathConfig(
                 url_path=FRONTEND_SCRIPT_PATH,
-                path=str(Path(__file__).parent / "www" / "vehicle-cards.js"),
+                path=str(FRONTEND_SCRIPT_FILE),
                 cache_headers=False,
             )
         ]
     )
-    add_extra_js_url(hass, FRONTEND_SCRIPT_URL)
+    # the URL changes with the file, so browsers and the service worker never keep a stale copy
+    digest = await hass.async_add_executor_job(
+        lambda: hashlib.sha256(FRONTEND_SCRIPT_FILE.read_bytes()).hexdigest()[:10]
+    )
+    add_extra_js_url(hass, f"{FRONTEND_SCRIPT_PATH}?v={digest}")
 
     async def set_odometer(call: ServiceCall) -> None:
         coordinator, _ = _resolve(hass, call.data["entity_id"])
@@ -384,6 +404,87 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         data = (result or {}).get("data")
         return {"values": _clean_scan(kind, data if isinstance(data, dict) else {})}
 
+    def _split_activity_id(coordinator: VehicleCoordinator, activity_id: str):
+        """Return (subentry id, completion id) for a service activity, else (None, id)."""
+        if ":" in activity_id:
+            subentry_id, completion_id = activity_id.split(":", 1)
+            if subentry_id in coordinator.config_entry.subentries:
+                return subentry_id, completion_id
+            return None, ""
+        return None, activity_id
+
+    async def _drop_if_unused(receipt: str | None) -> None:
+        """Delete a receipt file once nothing refers to it any more."""
+        if receipt and receipt not in store.referenced_receipts():
+            await async_delete(hass, [receipt])
+
+    def _not_found() -> ServiceValidationError:
+        return ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="attach_target_not_found"
+        )
+
+    async def update_activity(call: ServiceCall) -> None:
+        coordinator, _ = _resolve(hass, call.data["entity_id"])
+        entry_id = coordinator.config_entry.entry_id
+        data = call.data
+        subentry_id, rest = _split_activity_id(coordinator, data["activity_id"])
+        receipt = await _checked_receipt(hass, data.get("receipt"))
+        receipt_change: dict[str, Any] = {}
+        if receipt:
+            receipt_change["receipt"] = receipt
+        elif data["remove_receipt"]:
+            receipt_change["receipt"] = None
+
+        if ":" in data["activity_id"]:  # a completed service
+            if subentry_id is None:
+                raise _not_found()
+            changes: dict[str, Any] = dict(receipt_change)
+            if "date" in data:
+                changes["date"] = data["date"].isoformat()
+            for key in ("odometer", "cost"):
+                if key in data:
+                    changes[key] = data[key]
+            found, old = store.update_service(subentry_id, rest, changes)
+        else:  # a fuel or charge entry
+            current = next((e for e in store.vehicle(entry_id)["log"] if e["id"] == rest), None)
+            if current is None:
+                raise _not_found()
+            changes = dict(receipt_change)
+            if "date" in data:
+                changes["date"] = data["date"].isoformat()
+            if "odometer" in data:
+                changes["odometer"] = data["odometer"]
+            amount = data.get("amount", current["amount"])
+            if "amount" in data:
+                changes["amount"] = amount
+            if "price" in data:
+                changes["price"] = round(data["price"], 4)
+                changes["cost"] = round(data["total_cost"] if "total_cost" in data else data["price"] * amount, 2)
+            elif "total_cost" in data:
+                changes["cost"] = round(data["total_cost"], 2)
+                changes["price"] = round(data["total_cost"] / amount, 4)
+            elif "amount" in data and current.get("price") is not None:
+                changes["cost"] = round(current["price"] * amount, 2)
+            updated, old = store.update_log(entry_id, rest, changes)
+            found = updated is not None
+        if not found:
+            raise _not_found()
+        if old and old != receipt:
+            await _drop_if_unused(old)
+        await coordinator.async_refresh()
+
+    async def delete_activity(call: ServiceCall) -> None:
+        coordinator, _ = _resolve(hass, call.data["entity_id"])
+        subentry_id, rest = _split_activity_id(coordinator, call.data["activity_id"])
+        if ":" in call.data["activity_id"]:
+            removed = store.delete_service(subentry_id, rest) if subentry_id else None
+        else:
+            removed = store.delete_log(coordinator.config_entry.entry_id, rest)
+        if removed is None:
+            raise _not_found()
+        await _drop_if_unused(removed.get("receipt"))
+        await coordinator.async_refresh()
+
     async def attach_receipt(call: ServiceCall) -> None:
         coordinator, entity = _resolve(hass, call.data["entity_id"])
         receipt = await _checked_receipt(hass, call.data["receipt"])
@@ -425,6 +526,8 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         (SERVICE_COMPLETE_SERVICE, complete_service, COMPLETE_SERVICE_SCHEMA),
         ("attach_receipt", attach_receipt, ATTACH_RECEIPT_SCHEMA),
         ("delete_log_entry", delete_log_entry, DELETE_LOG_ENTRY_SCHEMA),
+        ("update_activity", update_activity, UPDATE_ACTIVITY_SCHEMA),
+        ("delete_activity", delete_activity, DELETE_ACTIVITY_SCHEMA),
     ):
         hass.services.async_register(DOMAIN, name, handler, schema=schema)
     for name, handler, schema in (

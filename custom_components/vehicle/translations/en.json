@@ -382,7 +382,7 @@
     },
     "delete_log_entry": {
       "name": "Delete log entry",
-      "description": "Deletes a fuel or charge entry together with its receipt.",
+      "description": "Deletes a fuel or charge entry together with its receipt. delete_activity does the same and also handles services.",
       "fields": {
         "entity_id": {
           "name": "Vehicle entity",
@@ -390,6 +390,66 @@
         },
         "log_entry_id": {
           "name": "Log entry id",
+          "description": "Id from the activity attribute of the odometer sensor."
+        }
+      }
+    },
+    "update_activity": {
+      "name": "Update activity",
+      "description": "Changes a past refuel, charge or completed service. Only the given fields change. Use the id from the activity attribute of the odometer sensor.",
+      "fields": {
+        "entity_id": {
+          "name": "Vehicle entity",
+          "description": "Any entity of the vehicle."
+        },
+        "activity_id": {
+          "name": "Activity id",
+          "description": "Id from the activity attribute of the odometer sensor."
+        },
+        "date": {
+          "name": "Date",
+          "description": "New date."
+        },
+        "amount": {
+          "name": "Amount",
+          "description": "Liters or kWh (refuel and charge). The cost is recalculated from the price."
+        },
+        "price": {
+          "name": "Price per unit",
+          "description": "Price per liter or kWh (refuel and charge). The cost is recalculated unless a total cost is given."
+        },
+        "total_cost": {
+          "name": "Total cost",
+          "description": "Total paid (refuel and charge). Without a price, the price is derived from it."
+        },
+        "cost": {
+          "name": "Cost",
+          "description": "Invoice amount (completed service)."
+        },
+        "odometer": {
+          "name": "Odometer",
+          "description": "Odometer reading in km."
+        },
+        "receipt": {
+          "name": "Receipt",
+          "description": "Receipt id (from upload_receipt) to attach. A previous receipt is deleted."
+        },
+        "remove_receipt": {
+          "name": "Remove receipt",
+          "description": "Detach and delete the receipt."
+        }
+      }
+    },
+    "delete_activity": {
+      "name": "Delete activity",
+      "description": "Deletes a past refuel, charge or completed service together with its receipt.",
+      "fields": {
+        "entity_id": {
+          "name": "Vehicle entity",
+          "description": "Any entity of the vehicle."
+        },
+        "activity_id": {
+          "name": "Activity id",
           "description": "Id from the activity attribute of the odometer sensor."
         }
       }
