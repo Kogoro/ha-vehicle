@@ -187,3 +187,73 @@ delete_log_entry:
       required: true
       selector:
         text:
+
+update_activity:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: vehicle
+    activity_id:
+      required: true
+      selector:
+        text:
+    date:
+      selector:
+        date:
+    amount:
+      selector:
+        number:
+          min: 0
+          max: 500
+          step: 0.01
+          mode: box
+    price:
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.001
+          mode: box
+    total_cost:
+      selector:
+        number:
+          min: 0
+          max: 10000
+          step: 0.01
+          mode: box
+    cost:
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.01
+          mode: box
+    odometer:
+      selector:
+        number:
+          min: 0
+          max: 10000000
+          step: 0.1
+          mode: box
+          unit_of_measurement: km
+    receipt:
+      selector:
+        text:
+    remove_receipt:
+      default: false
+      selector:
+        boolean:
+
+delete_activity:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: vehicle
+    activity_id:
+      required: true
+      selector:
+        text:

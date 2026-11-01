@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **German translation** of the integration and the cards.
+- **Edit past activities**: the activity card gets an inline editor (and delete); new services `update_activity` and `delete_activity`.
+- Fix: misaligned input fields in the entry card.
+- Service completions now have stable ids (existing ones get them on load).
+
 ## 0.1.0
 
 First release.

@@ -73,6 +73,12 @@
     },
     "delete_log_entry": {
       "service": "mdi:delete"
+    },
+    "update_activity": {
+      "service": "mdi:pencil"
+    },
+    "delete_activity": {
+      "service": "mdi:delete"
     }
   }
 }

@@ -4,6 +4,86 @@
  *   vehicle-entry-card     add a refuel, charge or completed service (with receipt upload)
  */
 
+
+// ---------------------------------------------------------------------------------------------
+// translations (English is the fallback; the language follows Home Assistant's user language)
+// ---------------------------------------------------------------------------------------------
+const I18N = {
+  en: {
+    selectVehicle: "Select a vehicle.",
+    notFound: "Vehicle not found ({id}).",
+    "status.overdue": "Overdue", "status.due_soon": "Due soon", "status.ok": "OK", "status.unknown": "Not tracked yet",
+    dayUnit: "d", today: "today", inDays: "in {n} d", daysOverdue: "{n} d overdue", kmLeft: "{n} km left", kmOverdue: "{n} km overdue",
+    consumption: "Consumption", costsMonth: "Costs this month", thisMonth: "this month",
+    fuel: "Fuel", charging: "Charging", service: "Service", nothingDue: "Nothing due.",
+    noItems: "No service items yet. Add them on the integration page.",
+    activityTitle: "{vehicle} · Activity", entryTitle: "{vehicle} · Add entry",
+    all: "All", refuels: "Refuels", charges: "Charges",
+    refuel: "Refuel", charge: "Charge",
+    refuelLine: "Refuel · {amount} L", chargeLine: "Charge · {amount} kWh", serviceDone: "{name} · done",
+    showMore: "Show more", noActivity: "No activity yet.", openFile: "Open file", edit: "Edit",
+    save: "Save", cancel: "Cancel", delete: "Delete", confirmDelete: "Delete this entry? This cannot be undone.",
+    date: "Date", liters: "Liters", energyKwh: "Energy (kWh)", priceL: "Price per L", priceKwh: "Price per kWh",
+    odometerKm: "Odometer (km)", odometerOptional: "Odometer (km, optional)", cost: "Cost",
+    receipt: "Receipt", receiptOptional: "Receipt (optional)", attachFile: "Attach file", replaceFile: "Replace", removeFile: "Remove", openFile2: "Open",
+    receiptAttached: "Receipt attached",
+    photoFile: "Photo / file", scan: "Scan with AI", uploading: "Uploading…", uploadFailed: "Upload failed",
+    reading: "Reading receipt…", checkValues: "Please check the values", nothingReadable: "Nothing readable found", scanFailed: "Scan failed",
+    saving: "Saving…", saved: "Saved", failed: "Failed", addRefuel: "Add refuel", addCharge: "Add charge", markDone: "Mark as done",
+    serviceItem: "Service item", currently: "Currently: {text}", total: "Total: {value}", last: "last: {value}", current: "current: {value}",
+    nothingToAdd: "Nothing to add for this vehicle.", removeTip: "Remove",
+    // editors
+    vehicle: "Vehicle", layout: "Layout", layoutNormal: "Normal", layoutCompact: "Compact", layoutMinimal: "Minimal",
+    header: "Header", statistics: "Statistics", serviceItems: "Service items", showTheseTypes: "Show these types", list: "List", showTheseTabs: "Show these tabs",
+    showTitle: "Show title", titleEmpty: "Title (empty = vehicle name)", titleAuto: "Title (empty = automatic)", icon: "Icon", showOdometer: "Show mileage",
+    showConsumption: "Show consumption", showCosts: "Show costs this month", showCostSplit: "Show the split (fuel / charging / service)",
+    showServices: "Show service items", serviceLayout: "Service item layout", layoutAuto: "Automatic (by layout)", layoutList: "List (two lines)", layoutRows: "One line each", layoutChips: "Chips",
+    serviceFilter: "Which service items", filterAll: "All items", filterAttention: "Only overdue or due soon", maxServices: "Maximum number of items (0 = all)", showHeadings: "Show the 'Service' heading",
+    optRefuels: "Refuels", optCharges: "Charges", optService: "Service", entries: "Entries shown (more via 'Show more')", showFilters: "Show filter chips",
+    groupByMonth: "Group by month", showCostsPerEntry: "Show costs", showFiles: "Show links to receipts and invoices", allowEdit: "Allow editing and deleting entries",
+    tabRefuel: "Refuel", tabCharge: "Charge", tabService: "Service",
+  },
+  de: {
+    selectVehicle: "Bitte ein Fahrzeug auswählen.",
+    notFound: "Fahrzeug nicht gefunden ({id}).",
+    "status.overdue": "Überfällig", "status.due_soon": "Bald fällig", "status.ok": "OK", "status.unknown": "Noch nicht erfasst",
+    dayUnit: "T", today: "heute", inDays: "in {n} T", daysOverdue: "{n} T überfällig", kmLeft: "noch {n} km", kmOverdue: "{n} km überfällig",
+    consumption: "Verbrauch", costsMonth: "Kosten diesen Monat", thisMonth: "diesen Monat",
+    fuel: "Kraftstoff", charging: "Laden", service: "Service", nothingDue: "Nichts fällig.",
+    noItems: "Noch keine Service-Einträge. Lege sie auf der Integrationsseite an.",
+    activityTitle: "{vehicle} · Aktivität", entryTitle: "{vehicle} · Eintrag hinzufügen",
+    all: "Alle", refuels: "Tanken", charges: "Laden",
+    refuel: "Tanken", charge: "Laden",
+    refuelLine: "Tanken · {amount} L", chargeLine: "Laden · {amount} kWh", serviceDone: "{name} · erledigt",
+    showMore: "Mehr anzeigen", noActivity: "Noch keine Aktivität.", openFile: "Datei öffnen", edit: "Bearbeiten",
+    save: "Speichern", cancel: "Abbrechen", delete: "Löschen", confirmDelete: "Diesen Eintrag löschen? Das lässt sich nicht rückgängig machen.",
+    date: "Datum", liters: "Liter", energyKwh: "Energie (kWh)", priceL: "Preis pro L", priceKwh: "Preis pro kWh",
+    odometerKm: "Kilometerstand (km)", odometerOptional: "Kilometerstand (km, optional)", cost: "Kosten",
+    receipt: "Beleg", receiptOptional: "Beleg (optional)", attachFile: "Datei anhängen", replaceFile: "Ersetzen", removeFile: "Entfernen", openFile2: "Öffnen",
+    receiptAttached: "Beleg angehängt",
+    photoFile: "Foto / Datei", scan: "Mit KI scannen", uploading: "Lade hoch…", uploadFailed: "Hochladen fehlgeschlagen",
+    reading: "Lese Beleg…", checkValues: "Bitte die Werte prüfen", nothingReadable: "Nichts Lesbares gefunden", scanFailed: "Scan fehlgeschlagen",
+    saving: "Speichere…", saved: "Gespeichert", failed: "Fehlgeschlagen", addRefuel: "Tanken eintragen", addCharge: "Laden eintragen", markDone: "Als erledigt markieren",
+    serviceItem: "Service-Eintrag", currently: "Aktuell: {text}", total: "Summe: {value}", last: "zuletzt: {value}", current: "aktuell: {value}",
+    nothingToAdd: "Für dieses Fahrzeug gibt es nichts hinzuzufügen.", removeTip: "Entfernen",
+    vehicle: "Fahrzeug", layout: "Darstellung", layoutNormal: "Normal", layoutCompact: "Kompakt", layoutMinimal: "Minimal",
+    header: "Kopfzeile", statistics: "Statistik", serviceItems: "Service-Einträge", showTheseTypes: "Diese Arten anzeigen", list: "Liste", showTheseTabs: "Diese Reiter anzeigen",
+    showTitle: "Titel anzeigen", titleEmpty: "Titel (leer = Fahrzeugname)", titleAuto: "Titel (leer = automatisch)", icon: "Symbol", showOdometer: "Kilometerstand anzeigen",
+    showConsumption: "Verbrauch anzeigen", showCosts: "Kosten diesen Monat anzeigen", showCostSplit: "Aufteilung anzeigen (Kraftstoff / Laden / Service)",
+    showServices: "Service-Einträge anzeigen", serviceLayout: "Darstellung der Service-Einträge", layoutAuto: "Automatisch (je nach Darstellung)", layoutList: "Liste (zwei Zeilen)", layoutRows: "Eine Zeile pro Eintrag", layoutChips: "Chips",
+    serviceFilter: "Welche Service-Einträge", filterAll: "Alle", filterAttention: "Nur überfällige oder bald fällige", maxServices: "Maximale Anzahl (0 = alle)", showHeadings: "Überschrift „Service“ anzeigen",
+    optRefuels: "Tanken", optCharges: "Laden", optService: "Service", entries: "Angezeigte Einträge (mehr über „Mehr anzeigen“)", showFilters: "Filter-Chips anzeigen",
+    groupByMonth: "Nach Monat gruppieren", showCostsPerEntry: "Kosten anzeigen", showFiles: "Links zu Belegen und Rechnungen anzeigen", allowEdit: "Bearbeiten und Löschen erlauben",
+    tabRefuel: "Tanken", tabCharge: "Laden", tabService: "Service",
+  },
+};
+
+const tr = (hass, key, vars = {}) => {
+  const lang = String(hass?.locale?.language || hass?.language || "en").split("-")[0];
+  const text = I18N[lang]?.[key] ?? I18N.en[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (_, name) => vars[name] ?? "");
+};
+
 // ---------------------------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------------------------
@@ -17,7 +97,6 @@ const STATUS_COLOR = {
   ok: "var(--success-color, #43a047)",
   unknown: "var(--secondary-text-color)",
 };
-const STATUS_LABEL = { overdue: "Overdue", due_soon: "Due soon", ok: "OK", unknown: "Not tracked yet" };
 const KIND_COLOR = { fuel: "#fb8c00", charge: "#43a047", service: "#03a9f4" };
 const KIND_ICON = { fuel: "mdi:gas-station", charge: "mdi:ev-station", service: "mdi:car-wrench" };
 
@@ -132,12 +211,16 @@ class VehicleCardBase extends HTMLElement {
     return !!(this._config && this._hass && this.shadowRoot);
   }
 
+  _t(key, vars) {
+    return tr(this._hass, key, vars);
+  }
+
   _vehicle() {
     return findVehicle(this._hass, this._config);
   }
 
   _notFound() {
-    this.shadowRoot.innerHTML = `<ha-card><div class="empty">Vehicle not found (${esc(describeConfig(this._config))}).</div></ha-card><style>${SHARED_CSS}</style>`;
+    this.shadowRoot.innerHTML = `<ha-card><div class="empty">${esc(this._t("notFound", { id: describeConfig(this._config) }))}</div></ha-card><style>${SHARED_CSS}</style>`;
   }
 
   _vehicleName(v) {
@@ -163,7 +246,7 @@ class VehicleCardBase extends HTMLElement {
   _remainingShort(a) {
     const parts = [];
     const sign = (n) => (n < 0 ? "−" : "");
-    if (a.days_remaining !== null && a.days_remaining !== undefined) parts.push(`${sign(a.days_remaining)}${Math.abs(a.days_remaining)} d`);
+    if (a.days_remaining !== null && a.days_remaining !== undefined) parts.push(`${sign(a.days_remaining)}${Math.abs(a.days_remaining)} ${this._t("dayUnit")}`);
     if (a.km_remaining !== null && a.km_remaining !== undefined) parts.push(`${sign(a.km_remaining)}${this._fmt(Math.abs(a.km_remaining))} km`);
     return parts.join(" · ");
   }
@@ -173,8 +256,8 @@ class VehicleCardBase extends HTMLElement {
     const parts = [];
     const d = a.days_remaining;
     const km = a.km_remaining;
-    if (d !== null && d !== undefined) parts.push(d < 0 ? `${-d} d overdue` : d === 0 ? "today" : `in ${d} d`);
-    if (km !== null && km !== undefined) parts.push(km < 0 ? `${this._fmt(-km)} km overdue` : `${this._fmt(km)} km left`);
+    if (d !== null && d !== undefined) parts.push(d < 0 ? this._t("daysOverdue", { n: -d }) : d === 0 ? this._t("today") : this._t("inDays", { n: d }));
+    if (km !== null && km !== undefined) parts.push(km < 0 ? this._t("kmOverdue", { n: this._fmt(-km) }) : this._t("kmLeft", { n: this._fmt(km) }));
     return parts.join(" · ");
   }
 
@@ -247,11 +330,11 @@ class VehicleInfoCard extends VehicleCardBase {
     const energy = Number(v.monthly_cost?.attributes.energy);
     const parts = [];
     if (Number.isFinite(fuel) && Number.isFinite(energy)) {
-      parts.push({ label: "Fuel", value: fuel, color: KIND_COLOR.fuel }, { label: "Charging", value: energy, color: KIND_COLOR.charge });
+      parts.push({ label: this._t("fuel"), value: fuel, color: KIND_COLOR.fuel }, { label: this._t("charging"), value: energy, color: KIND_COLOR.charge });
     } else {
-      parts.push({ label: type === "electric" ? "Charging" : "Fuel", value: month, color: type === "electric" ? KIND_COLOR.charge : KIND_COLOR.fuel });
+      parts.push({ label: type === "electric" ? this._t("charging") : this._t("fuel"), value: month, color: type === "electric" ? KIND_COLOR.charge : KIND_COLOR.fuel });
     }
-    parts.push({ label: "Service", value: service, color: KIND_COLOR.service });
+    parts.push({ label: this._t("service"), value: service, color: KIND_COLOR.service });
     return { total: month + service, parts: parts.filter((p) => p.value > 0) };
   }
 
@@ -262,8 +345,8 @@ class VehicleInfoCard extends VehicleCardBase {
     if (Number(cfg.max_services) > 0) items = items.slice(0, Number(cfg.max_services));
     if (!cfg.show_services || !all) return "";
     const shape = cfg.service_layout === "auto" ? (layout === "minimal" ? "chips" : "rows") : cfg.service_layout;
-    const heading = cfg.show_headings && shape !== "chips" ? `<div class="section">Service</div>` : "";
-    if (!items.length) return `${heading}<div class="empty">Nothing due.</div>`;
+    const heading = cfg.show_headings && shape !== "chips" ? `<div class="section">${esc(this._t("service"))}</div>` : "";
+    if (!items.length) return `${heading}<div class="empty">${esc(this._t("nothingDue"))}</div>`;
     const color = (s) => STATUS_COLOR[s.state] || STATUS_COLOR.unknown;
     const attrs = (s) => `data-entity="${esc(s.entity_id)}"`;
     if (shape === "chips") {
@@ -275,14 +358,14 @@ class VehicleInfoCard extends VehicleCardBase {
       return `${heading}${items
         .map(
           (s) => `<div class="row tap" ${attrs(s)}><span class="dot" style="background:${color(s)}"></span>
-            <div class="grow"><div>${esc(this._itemName(s, v))}</div><div class="muted">${esc(this._remainingLong(s.attributes) || STATUS_LABEL[s.state])}</div></div></div>`
+            <div class="grow"><div>${esc(this._itemName(s, v))}</div><div class="muted">${esc(this._remainingLong(s.attributes) || this._t("status." + s.state))}</div></div></div>`
         )
         .join("")}`;
     }
     return `${heading}${items
       .map(
         (s) => `<div class="crow tap" ${attrs(s)}><span class="dot" style="background:${color(s)}"></span><div class="grow">${esc(this._itemName(s, v))}</div>
-          <div class="muted ${s.state === "overdue" ? "bad" : ""}">${esc(this._remainingShort(s.attributes) || STATUS_LABEL[s.state])}</div></div>`
+          <div class="muted ${s.state === "overdue" ? "bad" : ""}">${esc(this._remainingShort(s.attributes) || this._t("status." + s.state))}</div></div>`
       )
       .join("")}`;
   }
@@ -309,13 +392,13 @@ class VehicleInfoCard extends VehicleCardBase {
     } else if (layout === "compact") {
       const line = [
         cons.length ? `<span class="cs"><ha-icon icon="mdi:gauge"></ha-icon>${consText}</span>` : "",
-        costs ? `<span class="cs"><ha-icon icon="mdi:cash-multiple"></ha-icon><b>${this._fmt(costs.total, 2)}</b> <small>${esc(currency)} this month</small></span>` : "",
+        costs ? `<span class="cs"><ha-icon icon="mdi:cash-multiple"></ha-icon><b>${this._fmt(costs.total, 2)}</b> <small>${esc(currency)} ${esc(this._t("thisMonth"))}</small></span>` : "",
       ].filter(Boolean).join("");
       body = `<div class="header">${titleHtml}${odoHtml}</div>${line ? `<div class="sline">${line}</div>` : ""}${this._services(v, cfg, layout)}`;
     } else {
       const rows = [];
       if (cons.length) {
-        rows.push(`<div class="stat"><div class="gi"><ha-icon icon="mdi:gauge"></ha-icon></div><div class="grow"><div class="gn">Consumption</div><div class="main">${consText}</div></div></div>`);
+        rows.push(`<div class="stat"><div class="gi"><ha-icon icon="mdi:gauge"></ha-icon></div><div class="grow"><div class="gn">${esc(this._t("consumption"))}</div><div class="main">${consText}</div></div></div>`);
       }
       if (costs) {
         const split = cfg.show_cost_split && costs.parts.length > 1;
@@ -323,7 +406,7 @@ class VehicleInfoCard extends VehicleCardBase {
         const legend = split
           ? `<div class="splits">${costs.parts.map((p) => `<span class="sp"><span class="dot s" style="background:${p.color}"></span>${p.label} <b>${this._fmt(p.value, 2)} ${esc(currency)}</b></span>`).join("")}</div>`
           : "";
-        rows.push(`<div class="stat"><div class="gi"><ha-icon icon="mdi:cash-multiple"></ha-icon></div><div class="grow"><div class="gn">Costs this month</div><div class="main"><b>${this._fmt(costs.total, 2)}</b> <small>${esc(currency)}</small></div>${bar}${legend}</div></div>`);
+        rows.push(`<div class="stat"><div class="gi"><ha-icon icon="mdi:cash-multiple"></ha-icon></div><div class="grow"><div class="gn">${esc(this._t("costsMonth"))}</div><div class="main"><b>${this._fmt(costs.total, 2)}</b> <small>${esc(currency)}</small></div>${bar}${legend}</div></div>`);
       }
       body = `<div class="header">${titleHtml}${odoHtml}</div>${rows.join("")}${this._services(v, cfg, layout)}`;
     }
@@ -372,6 +455,7 @@ const ACTIVITY_DEFAULTS = {
   group_by_month: true,
   show_costs: true,
   show_files: true,
+  allow_edit: true,
   entries: 8,
 };
 
@@ -391,6 +475,8 @@ class VehicleActivityCard extends VehicleCardBase {
   setConfig(config) {
     this._filter = "all";
     this._extra = 0;
+    this._editing = null;
+    this._signature = null;
     super.setConfig(config);
   }
 
@@ -400,9 +486,9 @@ class VehicleActivityCard extends VehicleCardBase {
   }
 
   _title(e) {
-    if (e.kind === "fuel") return `Refuel · ${this._fmt(e.amount, 1)} L`;
-    if (e.kind === "charge") return `Charge · ${this._fmt(e.amount, 1)} kWh`;
-    return `${esc(e.name)} · done`;
+    if (e.kind === "fuel") return this._t("refuelLine", { amount: this._fmt(e.amount, 1) });
+    if (e.kind === "charge") return this._t("chargeLine", { amount: this._fmt(e.amount, 1) });
+    return esc(this._t("serviceDone", { name: e.name }));
   }
 
   _subtitle(e) {
@@ -413,11 +499,54 @@ class VehicleActivityCard extends VehicleCardBase {
     return parts.join(" · ");
   }
 
+  _rowHtml(e, cfg, currency) {
+    return `<div class="row" data-id="${esc(e.id)}">
+      <div class="ic" style="background:${KIND_COLOR[e.kind]}22;color:${KIND_COLOR[e.kind]}"><ha-icon icon="${KIND_ICON[e.kind]}"></ha-icon></div>
+      <div class="grow"><div>${this._title(e)}</div><div class="muted">${this._subtitle(e)}</div></div>
+      ${cfg.show_costs && e.cost != null ? `<div class="amount">${this._fmt(e.cost, 2)} ${esc(currency)}</div>` : ""}
+      ${cfg.show_files ? (e.receipt ? `<ha-icon-button class="file" data-receipt="${esc(e.receipt)}" title="${esc(this._t("openFile"))}"><ha-icon icon="mdi:paperclip"></ha-icon></ha-icon-button>` : `<span class="nofile"></span>`) : ""}
+      ${cfg.allow_edit ? `<ha-icon-button class="edit" data-id="${esc(e.id)}" title="${esc(this._t("edit"))}"><ha-icon icon="mdi:pencil-outline"></ha-icon></ha-icon-button>` : ""}
+    </div>`;
+  }
+
+  _editHtml(e, currency) {
+    const t = (k, v) => esc(this._t(k, v));
+    const field = (label, name, value, step, extra = "") =>
+      `<label><span class="lt">${label}</span><input name="${name}" type="${name === "date" ? "date" : "number"}" ${name === "date" ? "" : `step="${step}" min="0" inputmode="decimal"`} value="${esc(value ?? "")}" ${extra}></label>`;
+    const fields =
+      e.kind === "service"
+        ? `${field(t("date"), "date", e.date)}${field(t("odometerKm"), "odometer", e.odometer, "0.1")}${field(`${t("cost")} (${esc(currency)})`, "cost", e.cost, "0.01")}`
+        : `${field(t("date"), "date", e.date)}${field(e.kind === "charge" ? t("energyKwh") : t("liters"), "amount", e.amount, "0.01")}
+           ${field(`${e.kind === "charge" ? t("priceKwh") : t("priceL")} (${esc(currency)})`, "price", e.price, "0.001")}${field(t("odometerOptional"), "odometer", e.odometer, "0.1")}`;
+    const receiptRow = `<div class="drop ${e.receipt ? "has" : ""}">
+        <ha-icon icon="mdi:paperclip" class="clip"></ha-icon>
+        <div class="grow rname muted">${e.receipt ? t("receiptAttached") : t("receiptOptional")}</div>
+        ${e.receipt ? `<button type="button" class="btn" data-act="open">${t("openFile2")}</button>` : ""}
+        <button type="button" class="btn" data-act="pick">${e.receipt ? t("replaceFile") : t("attachFile")}</button>
+        ${e.receipt ? `<button type="button" class="btn" data-act="remove">${t("removeFile")}</button>` : ""}
+      </div>`;
+    return `<div class="editor" data-id="${esc(e.id)}">
+      <div class="etitle">${this._title(e)}</div>
+      <form>${fields}${receiptRow}
+        <div class="actions"><button type="button" class="btn danger" data-act="delete"><ha-icon icon="mdi:delete-outline"></ha-icon>${t("delete")}</button>
+          <span class="status"></span>
+          <span class="grow"></span><button type="button" class="btn" data-act="cancel">${t("cancel")}</button><button type="submit" class="btn primary">${t("save")}</button></div>
+      </form></div>`;
+  }
+
   _render() {
     if (!this._ready) return;
     const cfg = this._config;
     const v = this._vehicle();
     if (!v.odometer) return this._notFound();
+    // the state changes constantly; only redraw when something shown here changed, and never
+    // while an entry is being edited (that would throw away what has been typed)
+    if (this._editing) return;
+    const currency = this._hass.config?.currency || "";
+    const signature = JSON.stringify([v.odometer.attributes.activity, cfg, this._filter, this._extra, currency, this._hass.locale?.language, this._vehicleName(v)]);
+    if (signature === this._signature) return;
+    this._signature = signature;
+
     const enabled = this._enabledKinds();
     const all = (v.odometer.attributes.activity || []).filter((e) => enabled[e.kind]);
     const present = ["fuel", "charge", "service"].filter((k) => all.some((e) => e.kind === k));
@@ -425,20 +554,12 @@ class VehicleActivityCard extends VehicleCardBase {
     const filtered = all.filter((e) => this._filter === "all" || e.kind === this._filter);
     const limit = Math.max(1, Number(cfg.entries) || 8) + this._extra;
     const shown = filtered.slice(0, limit);
-    const currency = this._hass.config?.currency || "";
-    const title = cfg.title || `${this._vehicleName(v)} · Activity`;
-    const chipLabel = { all: "All", fuel: "Refuels", charge: "Charges", service: "Service" };
-
-    const rowHtml = (e) => `<div class="row">
-      <div class="ic" style="background:${KIND_COLOR[e.kind]}22;color:${KIND_COLOR[e.kind]}"><ha-icon icon="${KIND_ICON[e.kind]}"></ha-icon></div>
-      <div class="grow"><div>${this._title(e)}</div><div class="muted">${this._subtitle(e)}</div></div>
-      ${cfg.show_costs && e.cost != null ? `<div class="amount">${this._fmt(e.cost, 2)} ${esc(currency)}</div>` : ""}
-      ${cfg.show_files ? (e.receipt ? `<ha-icon-button class="file" data-receipt="${esc(e.receipt)}" title="Open file"><ha-icon icon="mdi:paperclip"></ha-icon></ha-icon-button>` : `<span class="nofile"></span>`) : ""}
-    </div>`;
+    const title = cfg.title || this._t("activityTitle", { vehicle: this._vehicleName(v) });
+    const chipLabel = { all: this._t("all"), fuel: this._t("refuels"), charge: this._t("charges"), service: this._t("service") };
 
     let list = "";
     if (!shown.length) {
-      list = `<div class="empty">No activity yet.</div>`;
+      list = `<div class="empty">${esc(this._t("noActivity"))}</div>`;
     } else if (cfg.group_by_month) {
       let month = "";
       for (const e of shown) {
@@ -447,16 +568,16 @@ class VehicleActivityCard extends VehicleCardBase {
           month = m;
           list += `<div class="section">${esc(m)}</div>`;
         }
-        list += rowHtml(e);
+        list += this._rowHtml(e, cfg, currency);
       }
     } else {
-      list = shown.map(rowHtml).join("");
+      list = shown.map((e) => this._rowHtml(e, cfg, currency)).join("");
     }
     const filters =
       cfg.show_filters && present.length > 1
-        ? `<div class="chips">${["all", ...present].map((k) => `<span class="fchip ${k === this._filter ? "on" : ""}" data-filter="${k}">${chipLabel[k]}</span>`).join("")}</div>`
+        ? `<div class="chips">${["all", ...present].map((k) => `<span class="fchip ${k === this._filter ? "on" : ""}" data-filter="${k}">${esc(chipLabel[k])}</span>`).join("")}</div>`
         : "";
-    const more = filtered.length > shown.length ? `<div class="more" data-more>Show more</div>` : "";
+    const more = filtered.length > shown.length ? `<div class="more" data-more>${esc(this._t("showMore"))}</div>` : "";
 
     this.shadowRoot.innerHTML = `<ha-card>
       ${cfg.show_title ? `<div class="header"><div class="title">${cfg.icon ? `<ha-icon icon="${esc(cfg.icon)}"></ha-icon>` : ""}<span>${esc(title)}</span></div></div>` : ""}
@@ -470,6 +591,9 @@ class VehicleActivityCard extends VehicleCardBase {
       })
     );
     this.shadowRoot.querySelectorAll(".file").forEach((el) => el.addEventListener("click", () => openReceipt(this._hass, el.dataset.receipt)));
+    this.shadowRoot.querySelectorAll("button.edit, ha-icon-button.edit").forEach((el) =>
+      el.addEventListener("click", () => this._startEdit(el.dataset.id, all.find((e) => e.id === el.dataset.id)))
+    );
     const moreEl = this.shadowRoot.querySelector("[data-more]");
     if (moreEl) {
       moreEl.addEventListener("click", () => {
@@ -479,17 +603,135 @@ class VehicleActivityCard extends VehicleCardBase {
     }
   }
 
+  // ---- editing -----------------------------------------------------------------------------
+  _startEdit(id, entry) {
+    if (!entry) return;
+    this._editing = { id, entry, receipt: undefined, removeReceipt: false };
+    const row = this.shadowRoot.querySelector(`.row[data-id="${CSS.escape(id)}"]`);
+    if (!row) return;
+    const currency = this._hass.config?.currency || "";
+    row.outerHTML = this._editHtml(entry, currency);
+    const editor = this.shadowRoot.querySelector(".editor");
+    this._picker = document.createElement("input");
+    this._picker.type = "file";
+    this._picker.accept = "image/*,application/pdf";
+    this._picker.hidden = true;
+    this._picker.addEventListener("change", () => this._pickFile());
+    editor.appendChild(this._picker);
+    editor.querySelector("form").addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      this._save();
+    });
+    editor.querySelectorAll("[data-act]").forEach((el) => el.addEventListener("click", () => this._action(el.dataset.act)));
+  }
+
+  _status(text, cls = "") {
+    const el = this.shadowRoot.querySelector(".editor .status");
+    if (el) {
+      el.className = `status ${cls}`;
+      el.textContent = text;
+    }
+  }
+
+  _endEdit() {
+    this._editing = null;
+    this._signature = null;
+    this._render();
+  }
+
+  async _action(act) {
+    const edit = this._editing;
+    if (!edit) return;
+    const root = this.shadowRoot.querySelector(".editor");
+    if (act === "cancel") return this._endEdit();
+    if (act === "open") return openReceipt(this._hass, edit.receipt || edit.entry.receipt);
+    if (act === "pick") return this._picker.click();
+    if (act === "remove") {
+      edit.removeReceipt = true;
+      edit.receipt = undefined;
+      root.querySelector(".drop").classList.remove("has");
+      root.querySelector(".rname").textContent = this._t("receiptOptional");
+      root.querySelectorAll('[data-act="open"], [data-act="remove"]').forEach((el) => (el.hidden = true));
+      return;
+    }
+    if (act === "delete") {
+      if (!window.confirm(this._t("confirmDelete"))) return;
+      this._status(this._t("saving"));
+      try {
+        await this._hass.callService("vehicle", "delete_activity", { entity_id: this._vehicle().odometer.entity_id, activity_id: edit.id });
+        this._endEdit();
+      } catch (err) {
+        this._status(err?.message || this._t("failed"), "err");
+      }
+    }
+  }
+
+  async _pickFile() {
+    const file = this._picker.files[0];
+    this._picker.value = "";
+    if (!file || !this._editing) return;
+    const root = this.shadowRoot.querySelector(".editor");
+    root.querySelector(".rname").textContent = this._t("uploading");
+    try {
+      this._editing.receipt = await uploadReceipt(this._hass, file);
+      this._editing.removeReceipt = false;
+      root.querySelector(".rname").textContent = file.name;
+      root.querySelector(".drop").classList.add("has");
+    } catch (err) {
+      root.querySelector(".rname").textContent = this._editing.entry.receipt ? this._t("receiptAttached") : this._t("receiptOptional");
+      this._status(err?.message || this._t("uploadFailed"), "err");
+    }
+  }
+
+  async _save() {
+    const edit = this._editing;
+    const q = (n) => this.shadowRoot.querySelector(`.editor [name=${n}]`);
+    const data = { entity_id: this._vehicle().odometer.entity_id, activity_id: edit.id, date: q("date").value };
+    for (const name of ["amount", "price", "odometer", "cost"]) {
+      const input = q(name);
+      if (input && input.value !== "") data[name] = Number(input.value);
+    }
+    if (edit.receipt) data.receipt = edit.receipt;
+    else if (edit.removeReceipt) data.remove_receipt = true;
+    this._status(this._t("saving"));
+    try {
+      await this._hass.callService("vehicle", "update_activity", data);
+      this._endEdit();
+    } catch (err) {
+      this._status(err?.message || this._t("failed"), "err");
+    }
+  }
+
   _css() {
     return `
       .ic { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none; }
       .ic ha-icon { --mdc-icon-size:20px; }
       .amount { font-weight:500; text-align:right; white-space:nowrap; }
-      .nofile { width:48px; flex:none; margin-left:-12px; }
-      .file { --mdc-icon-button-size:40px; color:var(--secondary-text-color); margin:-8px -8px -8px -12px; }
+      .nofile { width:40px; flex:none; margin-left:-12px; }
+      .file, .edit { --mdc-icon-button-size:40px; color:var(--secondary-text-color); margin:-8px -8px -8px -12px; }
       .chips { display:flex; flex-wrap:wrap; gap:8px; padding:8px 16px 4px; }
       .fchip { border:1px solid var(--divider-color,#e0e0e0); border-radius:16px; padding:4px 12px; font-size:.85em; cursor:pointer; }
       .fchip.on { background:var(--primary-color,#03a9f4); color:var(--text-primary-color,#fff); border-color:transparent; }
       .more { padding:8px 16px; color:var(--primary-color,#03a9f4); font-weight:500; font-size:.9em; cursor:pointer; }
+      .editor { margin:6px 8px; padding:8px 8px 4px; border:1px solid var(--divider-color,#e0e0e0); border-radius:12px; background:var(--secondary-background-color,#fafafa); }
+      .etitle { padding:4px 8px; font-weight:500; }
+      form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; padding:6px 8px 8px; align-items:start; }
+      label { display:flex; flex-direction:column; gap:4px; font-size:.8em; color:var(--secondary-text-color); min-width:0; }
+      .lt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:1.2em; }
+      input { font:inherit; font-size:1rem; padding:8px; border-radius:6px; color:var(--primary-text-color); background:var(--card-background-color,#fff); border:1px solid var(--divider-color,#ccc); min-width:0; width:100%; box-sizing:border-box; }
+      input:focus { outline:2px solid var(--primary-color); outline-offset:-1px; }
+      input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+      input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+      .drop { grid-column:1 / -1; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:1.5px dashed var(--divider-color,#bdbdbd); border-radius:10px; padding:8px 10px; }
+      .drop.has { border-style:solid; border-color:var(--primary-color,#03a9f4); }
+      .drop .clip { color:var(--secondary-text-color); --mdc-icon-size:20px; }
+      .rname { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .actions { grid-column:1 / -1; display:flex; align-items:center; gap:8px; }
+      .btn { font:inherit; font-size:.9em; cursor:pointer; border-radius:6px; border:1px solid var(--divider-color,#ccc); background:transparent; color:var(--primary-text-color); padding:6px 12px; display:inline-flex; align-items:center; gap:6px; }
+      .btn ha-icon { --mdc-icon-size:18px; }
+      .btn.primary { background:var(--primary-color,#03a9f4); color:var(--text-primary-color,#fff); border-color:transparent; padding:8px 16px; font-weight:500; }
+      .btn.danger { color:var(--error-color,#db4437); border-color:var(--error-color,#db4437); }
+      .status.err { color:var(--error-color,#db4437); }
     `;
   }
 }
@@ -506,9 +748,9 @@ const ENTRY_DEFAULTS = {
 };
 
 const TAB_INFO = {
-  fuel: { label: "Refuel", icon: "mdi:gas-station" },
-  charge: { label: "Charge", icon: "mdi:ev-station" },
-  service: { label: "Service", icon: "mdi:car-wrench" },
+  fuel: { label: "tabRefuel", icon: "mdi:gas-station" },
+  charge: { label: "tabCharge", icon: "mdi:ev-station" },
+  service: { label: "tabService", icon: "mdi:car-wrench" },
 };
 
 class VehicleEntryCard extends VehicleCardBase {
@@ -561,17 +803,17 @@ class VehicleEntryCard extends VehicleCardBase {
     this._built = true;
     if (!tabs.includes(this._tab)) this._tab = tabs[0] || null;
     const cfg = this._config;
-    const title = cfg.title || `${this._vehicleName(v)} · Add entry`;
+    const title = cfg.title || this._t("entryTitle", { vehicle: this._vehicleName(v) });
     this._receipt = null;
 
     const tabBar =
       tabs.length > 1
-        ? `<div class="tabs">${tabs.map((t) => `<div class="tab ${t === this._tab ? "on" : ""}" data-tab="${t}"><ha-icon icon="${TAB_INFO[t].icon}"></ha-icon>${TAB_INFO[t].label}</div>`).join("")}</div>`
+        ? `<div class="tabs">${tabs.map((t) => `<div class="tab ${t === this._tab ? "on" : ""}" data-tab="${t}"><ha-icon icon="${TAB_INFO[t].icon}"></ha-icon>${esc(this._t(TAB_INFO[t].label))}</div>`).join("")}</div>`
         : "";
     this.shadowRoot.innerHTML = `<ha-card>
       ${cfg.show_title ? `<div class="header"><div class="title">${cfg.icon ? `<ha-icon icon="${esc(cfg.icon)}"></ha-icon>` : ""}<span>${esc(title)}</span></div></div>` : ""}
       ${tabBar}
-      ${this._tab ? this._form(v) : `<div class="empty">Nothing to add for this vehicle.</div>`}
+      ${this._tab ? this._form(v) : `<div class="empty">${esc(this._t("nothingToAdd"))}</div>`}
     </ha-card><style>${SHARED_CSS}${this._css()}</style>`;
     this._wire();
     this._hints();
@@ -582,32 +824,32 @@ class VehicleEntryCard extends VehicleCardBase {
     const t = this._tab;
     const files = `<div class="drop">
         <ha-icon icon="mdi:paperclip" class="clip"></ha-icon>
-        <div class="grow"><div class="rname muted">Receipt (optional)</div></div>
-        <button type="button" class="btn scan" hidden><ha-icon icon="mdi:text-recognition"></ha-icon>Scan with AI</button>
-        <button type="button" class="btn pick"><ha-icon icon="mdi:camera-outline"></ha-icon>Photo / file</button>
-        <button type="button" class="btn drop-x" hidden title="Remove"><ha-icon icon="mdi:close"></ha-icon></button>
+        <div class="grow"><div class="rname muted">${esc(this._t("receiptOptional"))}</div></div>
+        <button type="button" class="btn scan" hidden><ha-icon icon="mdi:text-recognition"></ha-icon>${esc(this._t("scan"))}</button>
+        <button type="button" class="btn pick"><ha-icon icon="mdi:camera-outline"></ha-icon>${esc(this._t("photoFile"))}</button>
+        <button type="button" class="btn drop-x" hidden title="${esc(this._t("removeTip"))}"><ha-icon icon="mdi:close"></ha-icon></button>
       </div>`;
     if (t === "service") {
       const options = this._sortedItems(v).map((s) => `<option value="${esc(s.entity_id)}">${esc(this._itemName(s, v))}</option>`).join("");
       return `<form>
-        <label class="full">Service item<select name="item">${options}</select></label>
+        <label class="full"><span class="lt">${esc(this._t("serviceItem"))}</span><select name="item">${options}</select></label>
         <div class="full muted item-state"></div>
-        <label>Date<input name="date" type="date" value="${today}" required></label>
-        <label>Odometer (km)<input name="odometer" type="number" step="0.1" min="0" inputmode="decimal"></label>
-        <label class="full">Cost <span class="cur"></span><input name="cost" type="number" step="0.01" min="0" inputmode="decimal"></label>
+        <label><span class="lt">${esc(this._t("date"))}</span><input name="date" type="date" value="${today}" required></label>
+        <label><span class="lt">${esc(this._t("odometerKm"))}</span><input name="odometer" type="number" step="0.1" min="0" inputmode="decimal"></label>
+        <label class="full"><span class="lt">${esc(this._t("cost"))} <span class="cur"></span></span><input name="cost" type="number" step="0.01" min="0" inputmode="decimal"></label>
         ${files}
-        <div class="actions"><span class="status"></span><button type="submit" class="btn primary">Mark as done</button></div>
+        <div class="actions"><span class="status"></span><button type="submit" class="btn primary">${esc(this._t("markDone"))}</button></div>
       </form>`;
     }
     const charge = t === "charge";
     return `<form>
-      <label>Date<input name="date" type="date" value="${today}" required></label>
-      <label>${charge ? "Energy (kWh)" : "Liters"}<input name="amount" type="number" step="0.01" min="0" inputmode="decimal" required></label>
-      <label>Price per ${charge ? "kWh" : "L"} <span class="cur"></span><input name="price" type="number" step="0.001" min="0" inputmode="decimal" required></label>
-      <label>Odometer (km, optional)<input name="odometer" type="number" step="0.1" min="0" inputmode="decimal"></label>
+      <label><span class="lt">${esc(this._t("date"))}</span><input name="date" type="date" value="${today}" required></label>
+      <label><span class="lt">${esc(charge ? this._t("energyKwh") : this._t("liters"))}</span><input name="amount" type="number" step="0.01" min="0" inputmode="decimal" required></label>
+      <label><span class="lt">${esc(charge ? this._t("priceKwh") : this._t("priceL"))} <span class="cur"></span></span><input name="price" type="number" step="0.001" min="0" inputmode="decimal" required></label>
+      <label><span class="lt">${esc(this._t("odometerOptional"))}</span><input name="odometer" type="number" step="0.1" min="0" inputmode="decimal"></label>
       ${files}
       <div class="total muted"></div>
-      <div class="actions"><span class="status"></span><button type="submit" class="btn primary">${charge ? "Add charge" : "Add refuel"}</button></div>
+      <div class="actions"><span class="status"></span><button type="submit" class="btn primary">${esc(charge ? this._t("addCharge") : this._t("addRefuel"))}</button></div>
     </form>`;
   }
 
@@ -650,7 +892,7 @@ class VehicleEntryCard extends VehicleCardBase {
 
   _clearReceipt() {
     this._receipt = null;
-    this._q(".rname").textContent = "Receipt (optional)";
+    this._q(".rname").textContent = this._t("receiptOptional");
     this._q(".scan").hidden = true;
     this._q(".drop-x").hidden = true;
     this._q(".drop").classList.remove("has");
@@ -661,7 +903,7 @@ class VehicleEntryCard extends VehicleCardBase {
     this._picker.value = "";
     if (!file) return;
     this._receipt = null;
-    this._q(".rname").textContent = "Uploading…";
+    this._q(".rname").textContent = this._t("uploading");
     try {
       this._receipt = await uploadReceipt(this._hass, file);
       this._q(".rname").textContent = file.name;
@@ -669,14 +911,14 @@ class VehicleEntryCard extends VehicleCardBase {
       this._q(".drop-x").hidden = false;
       this._q(".scan").hidden = !aiAvailable(this._hass);
     } catch (err) {
-      this._q(".rname").textContent = "Receipt (optional)";
-      this._status(err?.message || "Upload failed", "err");
+      this._q(".rname").textContent = this._t("receiptOptional");
+      this._status(err?.message || this._t("uploadFailed"), "err");
     }
   }
 
   async _scan() {
     if (!this._receipt) return;
-    this._status("Reading receipt…");
+    this._status(this._t("reading"));
     try {
       const v = await scanReceipt(this._hass, this._receipt, this._tab);
       const set = (name, value) => {
@@ -699,9 +941,9 @@ class VehicleEntryCard extends VehicleCardBase {
         set("odometer", v.odometer);
       }
       this._hints();
-      this._status(Object.keys(v).length ? "Please check the values" : "Nothing readable found");
+      this._status(Object.keys(v).length ? this._t("checkValues") : this._t("nothingReadable"));
     } catch (err) {
-      this._status(err?.message || "Scan failed", "err");
+      this._status(err?.message || this._t("scanFailed"), "err");
     }
   }
 
@@ -711,27 +953,27 @@ class VehicleEntryCard extends VehicleCardBase {
     const currency = this._hass.config?.currency || "";
     this.shadowRoot.querySelectorAll(".cur").forEach((el) => (el.textContent = currency ? `(${currency})` : ""));
     const odo = this._q("[name=odometer]");
-    if (odo) odo.placeholder = v.odometer?.state && !isNaN(v.odometer.state) ? `current: ${Math.round(v.odometer.state)}` : "";
+    if (odo) odo.placeholder = v.odometer?.state && !isNaN(v.odometer.state) ? this._t("current", { value: Math.round(v.odometer.state) }) : "";
     if (this._tab === "service") {
       const select = this._q("[name=item]");
       const state = this._hass.states[select.value];
-      const text = state ? this._remainingLong(state.attributes) || STATUS_LABEL[state.state] : "";
-      this._q(".item-state").textContent = text ? `Currently: ${text}` : "";
+      const text = state ? this._remainingLong(state.attributes) || this._t("status." + state.state) : "";
+      this._q(".item-state").textContent = text ? this._t("currently", { text }) : "";
       return;
     }
     const charge = this._tab === "charge";
     const last = (charge ? v.energy_price : v.fuel_price)?.state;
     const price = this._q("[name=price]");
-    price.placeholder = last && !isNaN(last) ? `last: ${last}` : "";
+    price.placeholder = last && !isNaN(last) ? this._t("last", { value: last }) : "";
     const total = Number(this._q("[name=amount]").value) * Number(price.value);
-    this._q(".total").textContent = total > 0 ? `Total: ${total.toFixed(2)} ${currency}` : "";
+    this._q(".total").textContent = total > 0 ? this._t("total", { value: `${total.toFixed(2)} ${currency}` }) : "";
   }
 
   async _submit() {
     const hass = this._hass;
     const v = this._vehicle();
     const value = (n) => this._q(`[name=${n}]`)?.value ?? "";
-    this._status("Saving…");
+    this._status(this._t("saving"));
     try {
       if (this._tab === "service") {
         const data = { entity_id: value("item"), date: value("date") };
@@ -756,13 +998,13 @@ class VehicleEntryCard extends VehicleCardBase {
       if (this._q("[name=cost]")) this._q("[name=cost]").value = "";
       this._clearReceipt();
       this._hints();
-      this._status("Saved", "ok");
+      this._status(this._t("saved"), "ok");
       const el = this._q(".status");
       setTimeout(() => {
-        if (el.textContent === "Saved") el.textContent = "";
+        if (el.textContent === this._t("saved")) el.textContent = "";
       }, 4000);
     } catch (err) {
-      this._status(err?.message || "Failed", "err");
+      this._status(err?.message || this._t("failed"), "err");
     }
   }
 
@@ -773,7 +1015,11 @@ class VehicleEntryCard extends VehicleCardBase {
       .tab.on { color:var(--primary-color,#03a9f4); box-shadow:inset 0 -2px 0 var(--primary-color,#03a9f4); }
       .tab ha-icon { --mdc-icon-size:18px; }
       form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:12px 16px 8px; }
-      label { display:flex; flex-direction:column; gap:4px; font-size:.8em; color:var(--secondary-text-color); }
+      form { align-items:start; }
+      label { display:flex; flex-direction:column; gap:4px; font-size:.8em; color:var(--secondary-text-color); min-width:0; }
+      .lt { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:1.2em; }
+      input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+      input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
       input, select { font:inherit; font-size:1rem; padding:8px; border-radius:6px; color:var(--primary-text-color); background:var(--secondary-background-color,#f5f5f5); border:1px solid var(--divider-color,#ccc); min-width:0; width:100%; box-sizing:border-box; }
       input:focus, select:focus { outline:2px solid var(--primary-color); outline-offset:-1px; }
       .full, .total, .actions, .drop { grid-column:1 / -1; }
@@ -860,15 +1106,16 @@ class VehicleInfoCardEditor extends VehicleCardEditor {
   }
 
   _schema() {
+    const t = (key) => tr(this._hass, key);
     return [
       DEVICE,
-      { name: "layout", selector: choice([{ value: "normal", label: "Normal" }, { value: "compact", label: "Compact" }, { value: "minimal", label: "Minimal" }]) },
-      group("Header", [{ name: "show_title", selector: BOOL }, { name: "title", selector: { text: {} } }, { name: "icon", selector: { icon: {} } }, { name: "show_odometer", selector: BOOL }]),
-      group("Statistics", [{ name: "show_consumption", selector: BOOL }, { name: "show_costs", selector: BOOL }, { name: "show_cost_split", selector: BOOL }]),
-      group("Service items", [
+      { name: "layout", selector: choice([{ value: "normal", label: t("layoutNormal") }, { value: "compact", label: t("layoutCompact") }, { value: "minimal", label: t("layoutMinimal") }]) },
+      group(t("header"), [{ name: "show_title", selector: BOOL }, { name: "title", selector: { text: {} } }, { name: "icon", selector: { icon: {} } }, { name: "show_odometer", selector: BOOL }]),
+      group(t("statistics"), [{ name: "show_consumption", selector: BOOL }, { name: "show_costs", selector: BOOL }, { name: "show_cost_split", selector: BOOL }]),
+      group(t("serviceItems"), [
         { name: "show_services", selector: BOOL },
-        { name: "service_layout", selector: choice([{ value: "auto", label: "Automatic (by layout)" }, { value: "list", label: "List (two lines)" }, { value: "rows", label: "One line each" }, { value: "chips", label: "Chips" }]) },
-        { name: "service_filter", selector: choice([{ value: "all", label: "All items" }, { value: "attention", label: "Only overdue or due soon" }]) },
+        { name: "service_layout", selector: choice([{ value: "auto", label: t("layoutAuto") }, { value: "list", label: t("layoutList") }, { value: "rows", label: t("layoutRows") }, { value: "chips", label: t("layoutChips") }]) },
+        { name: "service_filter", selector: choice([{ value: "all", label: t("filterAll") }, { value: "attention", label: t("filterAttention") }]) },
         { name: "max_services", selector: num(0, 50) },
         { name: "show_headings", selector: BOOL },
       ]),
@@ -876,11 +1123,12 @@ class VehicleInfoCardEditor extends VehicleCardEditor {
   }
 
   _labels() {
+    const t = (key) => tr(this._hass, key);
     return {
-      device: "Vehicle", layout: "Layout", show_title: "Show title", title: "Title (empty = vehicle name)", icon: "Icon", show_odometer: "Show mileage",
-      show_consumption: "Show consumption", show_costs: "Show costs this month", show_cost_split: "Show the split (fuel / charging / service)",
-      show_services: "Show service items", service_layout: "Service item layout", service_filter: "Which service items",
-      max_services: "Maximum number of items (0 = all)", show_headings: "Show the 'Service' heading",
+      device: t("vehicle"), layout: t("layout"), show_title: t("showTitle"), title: t("titleEmpty"), icon: t("icon"), show_odometer: t("showOdometer"),
+      show_consumption: t("showConsumption"), show_costs: t("showCosts"), show_cost_split: t("showCostSplit"),
+      show_services: t("showServices"), service_layout: t("serviceLayout"), service_filter: t("serviceFilter"),
+      max_services: t("maxServices"), show_headings: t("showHeadings"),
     };
   }
 }
@@ -891,26 +1139,29 @@ class VehicleActivityCardEditor extends VehicleCardEditor {
   }
 
   _schema() {
+    const t = (key) => tr(this._hass, key);
     return [
       DEVICE,
-      group("Header", [{ name: "show_title", selector: BOOL }, { name: "title", selector: { text: {} } }, { name: "icon", selector: { icon: {} } }]),
-      group("Show these types", [{ name: "show_refuels", selector: BOOL }, { name: "show_charges", selector: BOOL }, { name: "show_service", selector: BOOL }]),
-      group("List", [
+      group(t("header"), [{ name: "show_title", selector: BOOL }, { name: "title", selector: { text: {} } }, { name: "icon", selector: { icon: {} } }]),
+      group(t("showTheseTypes"), [{ name: "show_refuels", selector: BOOL }, { name: "show_charges", selector: BOOL }, { name: "show_service", selector: BOOL }]),
+      group(t("list"), [
         { name: "entries", selector: num(1, 40) },
         { name: "show_filters", selector: BOOL },
         { name: "group_by_month", selector: BOOL },
         { name: "show_costs", selector: BOOL },
         { name: "show_files", selector: BOOL },
+        { name: "allow_edit", selector: BOOL },
       ]),
     ];
   }
 
   _labels() {
+    const t = (key) => tr(this._hass, key);
     return {
-      device: "Vehicle", show_title: "Show title", title: "Title (empty = automatic)", icon: "Icon",
-      show_refuels: "Refuels", show_charges: "Charges", show_service: "Service",
-      entries: "Entries shown (more via 'Show more')", show_filters: "Show filter chips", group_by_month: "Group by month",
-      show_costs: "Show costs", show_files: "Show links to receipts and invoices",
+      device: t("vehicle"), show_title: t("showTitle"), title: t("titleAuto"), icon: t("icon"),
+      show_refuels: t("optRefuels"), show_charges: t("optCharges"), show_service: t("optService"),
+      entries: t("entries"), show_filters: t("showFilters"), group_by_month: t("groupByMonth"),
+      show_costs: t("showCostsPerEntry"), show_files: t("showFiles"), allow_edit: t("allowEdit"),
     };
   }
 }
@@ -921,17 +1172,19 @@ class VehicleEntryCardEditor extends VehicleCardEditor {
   }
 
   _schema() {
+    const t = (key) => tr(this._hass, key);
     return [
       DEVICE,
-      group("Header", [{ name: "show_title", selector: BOOL }, { name: "title", selector: { text: {} } }, { name: "icon", selector: { icon: {} } }]),
-      group("Show these tabs", [{ name: "show_refuel", selector: BOOL }, { name: "show_charge", selector: BOOL }, { name: "show_service", selector: BOOL }]),
+      group(t("header"), [{ name: "show_title", selector: BOOL }, { name: "title", selector: { text: {} } }, { name: "icon", selector: { icon: {} } }]),
+      group(t("showTheseTabs"), [{ name: "show_refuel", selector: BOOL }, { name: "show_charge", selector: BOOL }, { name: "show_service", selector: BOOL }]),
     ];
   }
 
   _labels() {
+    const t = (key) => tr(this._hass, key);
     return {
-      device: "Vehicle", show_title: "Show title", title: "Title (empty = automatic)", icon: "Icon",
-      show_refuel: "Refuel", show_charge: "Charge", show_service: "Service",
+      device: t("vehicle"), show_title: t("showTitle"), title: t("titleAuto"), icon: t("icon"),
+      show_refuel: t("tabRefuel"), show_charge: t("tabCharge"), show_service: t("tabService"),
     };
   }
 }

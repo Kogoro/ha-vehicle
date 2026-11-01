@@ -31,6 +31,8 @@ Design mockups and decisions: [docs/design](docs/design).
 
 Download `vehicle.zip` from the latest [release](https://github.com/Kogoro/ha-vehicle/releases), unpack it into `config/custom_components/vehicle/` (or copy the folder from this repository) and restart Home Assistant.
 
+The integration and the cards are available in English and German and follow your Home Assistant language.
+
 Requires Home Assistant 2026.2 or newer (tested with 2026.2 and 2026.10). The AI scan additionally needs an AI provider with AI task support.
 
 ## Configuration
@@ -95,7 +97,9 @@ Statistics notes: no full tank or full battery is assumed. Consumption over a sp
 | `vehicle.upload_receipt` | Store a file uploaded via HA (`/api/file_upload`) and return a `receipt` id (response service) |
 | `vehicle.scan_receipt` | Read values from a receipt with an AI task entity (response service, nothing is saved) |
 | `vehicle.attach_receipt` | Attach a `receipt` to an existing log entry (`log_entry_id`) or to the latest completion of a service item |
-| `vehicle.delete_log_entry` | Delete a fuel/charge entry (`log_entry_id`, see `activity` on the odometer sensor) with its receipt |
+| `vehicle.update_activity` | Correct a past refuel, charge or completed service (`activity_id` from the `activity` attribute; any of `date`, `amount`, `price`, `total_cost`, `cost`, `odometer`, `receipt`, `remove_receipt`). A replaced or removed receipt file is deleted |
+| `vehicle.delete_activity` | Delete a past refuel, charge or completed service with its receipt |
+| `vehicle.delete_log_entry` | Delete a fuel/charge entry (`log_entry_id`); `delete_activity` does the same and also handles services |
 
 `add_fuel`, `add_charge` and `complete_service` also accept an optional `receipt` id.
 
@@ -140,7 +144,7 @@ layout: compact
 
 ### `vehicle-activity-card` — what happened
 
-A timeline of refuels, charges and completed services, grouped by month, with the cost and a paperclip that opens the stored receipt or invoice. Types a vehicle has no entries for do not appear (no "Charges" filter for a petrol car). The card only links files; uploading happens in the entry card.
+A timeline of refuels, charges and completed services, grouped by month, with the cost and a paperclip that opens the stored receipt or invoice. Types a vehicle has no entries for do not appear (no "Charges" filter for a petrol car). Each entry has a pencil button that opens an inline editor: change date, amount, price, odometer or cost (the cost follows the price), attach, replace or remove the receipt, or delete the entry. The cost of a refuel is recalculated from amount × price unless you change the price. Uploading new entries happens in the entry card.
 
 ```yaml
 type: custom:vehicle-activity-card
@@ -158,6 +162,7 @@ entries: 5
 | `group_by_month` | `true` | Month headings |
 | `show_costs` | `true` | Cost per entry |
 | `show_files` | `true` | Paperclip links to receipts and invoices |
+| `allow_edit` | `true` | Pencil button to edit or delete an entry |
 
 ### `vehicle-entry-card` — add an entry
 

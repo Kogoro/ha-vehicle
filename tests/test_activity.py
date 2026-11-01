@@ -3,7 +3,9 @@
 import datetime
 from pathlib import Path
 
+import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
@@ -12,7 +14,9 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.vehicle.const import DOMAIN
+from custom_components.vehicle.receipts import receipt_dir
 
+from .test_receipts import _upload
 from .test_vehicle import _entity, _setup
 
 
@@ -169,3 +173,103 @@ async def test_catalog_is_consistent() -> None:
             assert item["interval_days"] or item["interval_km"], item["id"]
             assert {"en", "de"} <= set(item["name"]) and {"en", "de"} <= set(item["description"])
             assert item["applies_to"] and set(item["applies_to"]) <= {"petrol", "diesel", "hybrid", "electric"}
+
+
+def _activity(hass, odometer):
+    return hass.states.get(odometer).attributes["activity"]
+
+
+async def test_update_fuel_entry(hass: HomeAssistant, hass_client) -> None:
+    """Past refuels can be corrected; cost and price follow, files are cleaned up."""
+
+
+    await _setup(hass)
+    odometer = _entity(hass, "sensor", "_odometer")
+    old_receipt = await _upload(hass, hass_client)
+    await hass.services.async_call(
+        DOMAIN,
+        "add_fuel",
+        {"entity_id": odometer, "liters": 40, "price_per_liter": 1.5, "odometer": 1000, "date": "2026-10-01", "receipt": old_receipt},
+        blocking=True,
+    )
+    entry_id = _activity(hass, odometer)[0]["id"]
+
+    async def update(**data):
+        await hass.services.async_call(
+            DOMAIN, "update_activity", {"entity_id": odometer, "activity_id": entry_id, **data}, blocking=True
+        )
+        return _activity(hass, odometer)[0]
+
+    entry = await update(amount=42)  # price stays, cost follows
+    assert (entry["amount"], entry["price"], entry["cost"]) == (42, 1.5, 63.0)
+    entry = await update(price=1.6)
+    assert (entry["price"], entry["cost"]) == (1.6, 67.2)
+    entry = await update(total_cost=70)  # price derived from the total
+    assert (entry["price"], entry["cost"]) == (round(70 / 42, 4), 70)
+    entry = await update(date=datetime.date(2026, 10, 5), odometer=1100)
+    assert (entry["date"], entry["odometer"]) == ("2026-10-05", 1100)
+
+    new_receipt = await _upload(hass, hass_client)
+    entry = await update(receipt=new_receipt)
+    assert entry["receipt"] == new_receipt
+    assert not (receipt_dir(hass) / old_receipt).exists() and (receipt_dir(hass) / new_receipt).exists()
+    entry = await update(remove_receipt=True)
+    assert "receipt" not in entry and not (receipt_dir(hass) / new_receipt).exists()
+
+
+async def test_update_and_delete_service_completion(hass: HomeAssistant, hass_client) -> None:
+    """Completed services can be edited and deleted; their ids stay valid when others are removed."""
+
+
+    await _setup(hass)
+    odometer = _entity(hass, "sensor", "_odometer")
+    status = _entity(hass, "sensor", "oil_status")
+    receipt = await _upload(hass, hass_client)
+    for date, cost in (("2026-01-10", 100), ("2026-03-10", 200)):
+        await hass.services.async_call(
+            DOMAIN, "complete_service", {"entity_id": status, "date": date, "cost": cost, "odometer": 500}, blocking=True
+        )
+    await hass.services.async_call(
+        DOMAIN, "complete_service", {"entity_id": status, "date": "2026-06-10", "cost": 300, "receipt": receipt}, blocking=True
+    )
+    first, second, third = (a for a in reversed(_activity(hass, odometer)) if a["kind"] == "service")
+    assert third["receipt"] == receipt and ":" in first["id"]
+
+    await hass.services.async_call(
+        DOMAIN, "update_activity", {"entity_id": odometer, "activity_id": second["id"], "cost": 250.5, "date": datetime.date(2026, 3, 11)}, blocking=True
+    )
+    changed = next(a for a in _activity(hass, odometer) if a["id"] == second["id"])
+    assert (changed["cost"], changed["date"]) == (250.5, "2026-03-11")
+
+    await hass.services.async_call(DOMAIN, "delete_activity", {"entity_id": odometer, "activity_id": first["id"]}, blocking=True)
+    assert [a["id"] for a in reversed(_activity(hass, odometer))] == [second["id"], third["id"]]  # ids unchanged
+    assert hass.states.get(status).attributes["last_date"] == "2026-06-10"
+
+    await hass.services.async_call(DOMAIN, "delete_activity", {"entity_id": odometer, "activity_id": third["id"]}, blocking=True)
+    assert not (receipt_dir(hass) / receipt).exists()
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "delete_activity", {"entity_id": odometer, "activity_id": third["id"]}, blocking=True)
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "update_activity", {"entity_id": odometer, "activity_id": "nope", "cost": 1}, blocking=True)
+
+
+async def test_delete_fuel_entry_keeps_shared_receipt(hass: HomeAssistant) -> None:
+    """delete_activity removes a refuel."""
+    await _setup(hass)
+    odometer = _entity(hass, "sensor", "_odometer")
+    await hass.services.async_call(DOMAIN, "add_fuel", {"entity_id": odometer, "liters": 10, "price_per_liter": 2}, blocking=True)
+    entry_id = _activity(hass, odometer)[0]["id"]
+    await hass.services.async_call(DOMAIN, "delete_activity", {"entity_id": odometer, "activity_id": entry_id}, blocking=True)
+    assert _activity(hass, odometer) == []
+
+
+async def test_old_completions_get_ids(hass: HomeAssistant, hass_storage) -> None:
+    """Completions saved by 0.1.0 (without ids) get stable ids when loaded."""
+    hass_storage["vehicle.storage"] = {
+        "version": 1,
+        "key": "vehicle.storage",
+        "data": {"vehicles": {}, "service": {"oil": {"baseline_odometer": None, "history": [{"date": "2026-02-01", "odometer": 900.0, "cost": 99.0}]}}},
+    }
+    await _setup(hass)
+    service = [a for a in _activity(hass, _entity(hass, "sensor", "_odometer")) if a["kind"] == "service"]
+    assert len(service) == 1 and service[0]["id"].startswith("oil:") and len(service[0]["id"]) == len("oil:") + 8

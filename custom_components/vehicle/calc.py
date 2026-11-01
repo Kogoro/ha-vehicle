@@ -190,7 +190,7 @@ def build_activity(
         for index, record in enumerate(history):
             merged.append(
                 {
-                    "id": f"{subentry_id}:{index}",
+                    "id": f"{subentry_id}:{record.get('id', index)}",
                     "kind": "service",
                     "name": name,
                     "date": record["date"],
